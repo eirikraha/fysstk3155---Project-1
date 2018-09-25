@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from sklearn.metrics import r2_score, mean_squared_error
+from sklearn.linear_model import Lasso, Ridge, LinearRegression
 
 def FrankeFunction(x,y):
 	#Given from the project1.pdf
@@ -32,23 +33,71 @@ def R2score(y, y_hat):
 	# R^2 score as defined by project 1
 	return 1 - np.sum((y - y_hat)**2)/np.sum((y - mean_val(y))**2)
 
-def bootstrap(y, y_hat, nBoots = 1000):
-	# bootstrap as found in slide 92 in the lecture notes on Regression
+def HomeMadeRidge(X, zr, sk = False):
+	lmb_values = [1e-4, 1e-3, 1e-2, 1e-1, 1, 1e1, 1e2, 1e3, 1e4]
+	num_values = len(lmb_values)
+	beta_ridge = np.zeros((X.shape[1], num_values))
 
+	Id_mat = np.eye(X.shape[1])
+
+	for i in range(0, num_values):
+		beta_ridge[:, i] = (np.linalg.inv(X.T @ X + lmb_values[i]*Id_mat) @ X.T @ zr).flatten()
+
+	pred_ridge = X @ beta_ridge   #Why not RSS like in the book at equation 3.43?
+
+	if sk == True:
+		pred_ridgeSK = np.zeros((X.shape[0], num_values))
+		for i in range(0, num_values):
+			pred_ridgeSK[:, i] = (Ridge(alpha=lmb_values[i], fit_intercept = False).fit(X, zr).predict(X)).flatten()
+		
+		return pred_ridge, pred_ridgeSK, lmb_values
+	else:
+		return pred_ridge, lmb_values
+
+
+def bootstrap(xdata, ydata, nBoots = 1000):
+	# bootstrap as found in slide 92 in the lecture notes on Regression
     bootVec = np.zeros(nBoots)
+    bootR2 = np.zeros(nBoots)
+    bootMSE = np.zeros(nBoots)
 
     # Choose random elements from the data-array, one element may be
     # chosen more than once. 
     for k in range(0,nBoots):
-        bootVec[k] = np.average(np.random.choice(y_hat, len(y_hat)))
+    	print(xdata, len(xdata))
+    	temp_x = np.random.choice(xdata, len(xdata))
+    	temp_y = np.random.choice(ydata, len(ydata))
+
+    	temp_x_mesh, temp_y_mesh = np.meshgrid(temp_x, temp_y)
+    	temp_z_mesh = FrankeFunction(temp_x_mesh, temp_y_mesh)
+
+    	boot_x = np.ravel(temp_x_mesh)
+    	boot_y = np.ravel(temp_y_mesh)
+    	boot_z = np.ravel(temp_z_mesh)
+
+    	boot_X = np.c_[np.ones((n_samples**2,1)), boot_x, boot_x**2, boot_x**3, boot_x**4, boot_x**5,
+    							  boot_y, boot_y**2, boot_y**3, boot_y**4, boot_y**5,
+    							  boot_x*boot_y, boot_x*boot_y**2, boot_x*boot_y**3, boot_x*boot_y**4,
+    							  boot_y*boot_x**2, boot_y*boot_x**3, boot_y*boot_x**4,
+    							  boot_y**2*boot_x**2, boot_y**2*boot_x**3, boot_y**3*boot_x**2]
+
+		# OLS 
+    	boot_beta_ls = np.linalg.inv( boot_X.T @ boot_X ) @ boot_X.T @ boot_z
+    	boot_pred_ls = boot_X @ boot_beta_ls 
+
+        #bootVec[k] = np.average(np.random.choice(data, len(data)))
+    	bootVec[k] = np.average(boot_pred_ls)
+    	bootR2[k]  = R2score(boot_z, boot_pred_ls)
+    	bootMSE[k] = MeanSquareError(boot_z, boot_pred_ls)
+    
     bootAvg = np.average(bootVec)
     bootVar = np.var(bootVec)
     bootStd = np.std(bootVec)
 
-    bootR2  = R2score(y, bootVec)
-    bootMSE = MeanSquareError(y, bootVec)
+    bootR2avg  = np.average(bootR2)
+    bootMSEavg = np.average(bootMSE)
 
-    return bootVec, bootAvg bootVar, bootStd, bootR2, bootMSE
+    return [bootVec, bootAvg, bootVar, bootStd, bootR2avg, bootMSEavg]
 
 
 fig = plt.figure()
@@ -89,17 +138,53 @@ X = np.c_[np.ones((n_samples**2,1)), x, x**2, x**3, x**4, x**5,
 # OLS 
 beta_ls = np.linalg.inv( X.T @ X ) @ X.T @ zr
 pred_ls = X @ beta_ls     # How do I know which of all the models in X gives me this value?
+pred_lsSK = (LinearRegression(fit_intercept = False).fit(X, zr).predict(X)).flatten()
+pred_ridge, pred_ridgeSK,lmb_values = HomeMadeRidge(X, zr, sk = True)
+pred_lasso = (Lasso(alpha = 0.01, fit_intercept = False).fit(X, zr).predict(X)).flatten()  #Which alpha should I use and what does it do?
+
 
 sigma_sq = variance(zr, pred_ls, X.shape[1] - 1)   #Here I assume X has dim (N * p + 1), and hence take -1 from X.shape[1], but is this correct?
 var_beta = np.linalg.inv( X.T @ X) * sigma_sq
-MSE = MeanSquareError(zr, pred_ls)
-MSEsci = mean_squared_error(zr, pred_ls)
-R2 = R2score(zr, pred_ls)
-R2sci = r2_score(zr, pred_ls)
+MSE_ls = MeanSquareError(zr, pred_ls)
+MSEsci_ls = mean_squared_error(zr, pred_ls)
+R2_ls = R2score(zr, pred_ls)
+R2sci_ls = r2_score(zr, pred_ls)
 
-print ("Var(beta): \n", var_beta)
-print ("MSE: \n", MSE)
-print ("SciKit MSE: \n", MSE)
-print ("R2score: \n", R2)
-print ("SciKit R2score: \n", R2sci)
+#print ("Var(beta): \n", var_beta)
 
+# print ("OLS:")
+# print ("MSE: \n", MSE_ls)
+# print ("SciKit MSE: \n", MSEsci_ls)
+# print ("R2score: \n", R2_ls)
+# print ("SciKit R2score: \n", R2sci_ls)
+
+# for i in range(0, pred_ridge.shape[1]):
+# 	MSE_ri = MeanSquareError(zr, pred_ridge[:, i])
+# 	MSEsci_ri = mean_squared_error(zr, pred_ridge[:, i])
+# 	R2_ri = R2score(zr, pred_ridge[:, i])
+# 	R2sci_ri = r2_score(zr, pred_ridge[:, i])
+
+# 	print ("Ridge with lambda = %1.2e:" %lmb_values[i])
+# 	print ("MSE: \n", MSE_ri)
+# 	print ("SciKit MSE: \n", MSEsci_ri)
+# 	print ("R2score: \n", R2_ri)
+# 	print ("SciKit R2score: \n", R2sci_ri)
+# 	print (" ")
+
+MSE_lasso = MeanSquareError(zr, pred_lasso)
+MSEsci_lasso = mean_squared_error(zr, pred_lasso)
+R2_lasso = R2score(zr, pred_lasso)
+R2sci_lasso = r2_score(zr, pred_lasso)
+
+print ("Lasso:")
+print ("MSE: \n", MSE_lasso)
+print ("SciKit MSE: \n", MSEsci_lasso)
+print ("R2score: \n", R2_lasso)
+print ("SciKit R2score: \n", R2sci_lasso)
+
+#bootResults = bootstrap(x_start, y_start, nBoots = 100)
+
+#print (bootResults)
+
+# print (np.max(pred_ls - pred_lsSK))
+# print (np.max(pred_ridge - pred_ridgeSK))
