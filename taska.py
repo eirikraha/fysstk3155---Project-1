@@ -54,54 +54,35 @@ def HomeMadeRidge(X, zr, sk = False):
 	else:
 		return pred_ridge, lmb_values
 
+def R2MSEeval(zr, pred, X, Method = ""):
+	sigma_sq = variance(zr, pred, X.shape[1] - 1)   #Here I assume X has dim (N * p + 1), and hence take -1 from X.shape[1], but is this correct?
+	var_beta = np.linalg.inv( X.T @ X) * sigma_sq
+	MSE = MeanSquareError(zr, pred)
+	MSEsci = mean_squared_error(zr, pred)
+	R2 = R2score(zr, pred)
+	R2sci = r2_score(zr, pred)	
 
-def bootstrap(xdata, ydata, nBoots = 1000):
+	print (Method)
+	print ("MSE: \n", MSE)
+	print ("SciKit MSE: \n", MSEsci)
+	print ("R2score: \n", R2)
+	print ("SciKit R2score: \n", R2sci)
+
+
+def bootstrap(zdata, nBoots = 1000):   #If nBoots != 10000 I get problems when doing matrix multiplication. How should I avoid that?
 	# bootstrap as found in slide 92 in the lecture notes on Regression
     bootVec = np.zeros(nBoots)
-    bootR2 = np.zeros(nBoots)
-    bootMSE = np.zeros(nBoots)
 
     # Choose random elements from the data-array, one element may be
     # chosen more than once. 
     for k in range(0,nBoots):
-    	print(xdata, len(xdata))
-    	temp_x = np.random.choice(xdata, len(xdata))
-    	temp_y = np.random.choice(ydata, len(ydata))
-
-    	temp_x_mesh, temp_y_mesh = np.meshgrid(temp_x, temp_y)
-    	temp_z_mesh = FrankeFunction(temp_x_mesh, temp_y_mesh)
-
-    	boot_x = np.ravel(temp_x_mesh)
-    	boot_y = np.ravel(temp_y_mesh)
-    	boot_z = np.ravel(temp_z_mesh)
-
-    	boot_X = np.c_[np.ones((n_samples**2,1)), boot_x, boot_x**2, boot_x**3, boot_x**4, boot_x**5,
-    							  boot_y, boot_y**2, boot_y**3, boot_y**4, boot_y**5,
-    							  boot_x*boot_y, boot_x*boot_y**2, boot_x*boot_y**3, boot_x*boot_y**4,
-    							  boot_y*boot_x**2, boot_y*boot_x**3, boot_y*boot_x**4,
-    							  boot_y**2*boot_x**2, boot_y**2*boot_x**3, boot_y**3*boot_x**2]
-
-		# OLS 
-    	boot_beta_ls = np.linalg.inv( boot_X.T @ boot_X ) @ boot_X.T @ boot_z
-    	boot_pred_ls = boot_X @ boot_beta_ls 
-
-        #bootVec[k] = np.average(np.random.choice(data, len(data)))
-    	bootVec[k] = np.average(boot_pred_ls)
-    	bootR2[k]  = R2score(boot_z, boot_pred_ls)
-    	bootMSE[k] = MeanSquareError(boot_z, boot_pred_ls)
+    	bootVec[k] = np.average(np.random.choice(zdata, len(zdata)))
     
     bootAvg = np.average(bootVec)
     bootVar = np.var(bootVec)
     bootStd = np.std(bootVec)
 
-    bootR2avg  = np.average(bootR2)
-    bootMSEavg = np.average(bootMSE)
-
-    return [bootVec, bootAvg, bootVar, bootStd, bootR2avg, bootMSEavg]
-
-
-fig = plt.figure()
-ax = fig.gca(projection='3d')
+    return [bootVec, bootAvg, bootVar, bootStd]
 
 
 n_samples = 100
@@ -118,7 +99,6 @@ y = np.ravel(y_mesh)
 print (x.shape, y.shape)
 
 zr = np.ravel(z_mesh)
-z_noise = zr + 0.01*np.random.rand(n_samples, 1)
 
 # Centering x and y. Why do we need to do this?
 # This is added to give a common frame of reference, not needed
@@ -135,52 +115,79 @@ X = np.c_[np.ones((n_samples**2,1)), x, x**2, x**3, x**4, x**5,
 								  y*x**2, y*x**3, y*x**4,
 								  y**2*x**2, y**2*x**3, y**3*x**2]
 
-# OLS 
+# Finding the predicted values using different methods
 beta_ls = np.linalg.inv( X.T @ X ) @ X.T @ zr
 pred_ls = X @ beta_ls     # How do I know which of all the models in X gives me this value?
 pred_lsSK = (LinearRegression(fit_intercept = False).fit(X, zr).predict(X)).flatten()
 pred_ridge, pred_ridgeSK,lmb_values = HomeMadeRidge(X, zr, sk = True)
 pred_lasso = (Lasso(alpha = 0.01, fit_intercept = False).fit(X, zr).predict(X)).flatten()  #Which alpha should I use and what does it do?
 
+#Data with noise
+zr_noise = np.array([(0.01*np.random.uniform(low=-0.9999,high = 1) + zr[i]) for i in range(0, len(zr))])
+#zr_noise = zr + 0.01*np.random.rand(n_samples**2, 1)   #Gives shape (10000, 10000), but shouldn't we want only (10000,)?
 
-sigma_sq = variance(zr, pred_ls, X.shape[1] - 1)   #Here I assume X has dim (N * p + 1), and hence take -1 from X.shape[1], but is this correct?
-var_beta = np.linalg.inv( X.T @ X) * sigma_sq
-MSE_ls = MeanSquareError(zr, pred_ls)
-MSEsci_ls = mean_squared_error(zr, pred_ls)
-R2_ls = R2score(zr, pred_ls)
-R2sci_ls = r2_score(zr, pred_ls)
+print (np.mean(zr), np.mean(zr_noise))
 
-#print ("Var(beta): \n", var_beta)
+# Finding the predicted values using different methods based on noisy data
+beta_ls_noise = np.linalg.inv( X.T @ X ) @ X.T @ zr_noise
+pred_ls_noise = X @ beta_ls_noise     # How do I know which of all the models in X gives me this value?
+pred_lsSK_noise = (LinearRegression(fit_intercept = False).fit(X, zr_noise).predict(X)).flatten()
+pred_ridge_noise, pred_ridgeSK_noise,lmb_values_noise = HomeMadeRidge(X, zr_noise, sk = True)
+pred_lasso_noise = (Lasso(alpha = 0.01, fit_intercept = False).fit(X, zr_noise).predict(X)).flatten()  #Which alpha should I use and what does it do?
 
-# print ("OLS:")
-# print ("MSE: \n", MSE_ls)
-# print ("SciKit MSE: \n", MSEsci_ls)
-# print ("R2score: \n", R2_ls)
-# print ("SciKit R2score: \n", R2sci_ls)
 
-# for i in range(0, pred_ridge.shape[1]):
-# 	MSE_ri = MeanSquareError(zr, pred_ridge[:, i])
-# 	MSEsci_ri = mean_squared_error(zr, pred_ridge[:, i])
-# 	R2_ri = R2score(zr, pred_ridge[:, i])
-# 	R2sci_ri = r2_score(zr, pred_ridge[:, i])
 
-# 	print ("Ridge with lambda = %1.2e:" %lmb_values[i])
-# 	print ("MSE: \n", MSE_ri)
-# 	print ("SciKit MSE: \n", MSEsci_ri)
-# 	print ("R2score: \n", R2_ri)
-# 	print ("SciKit R2score: \n", R2sci_ri)
-# 	print (" ")
+#Bootstrap resampling
+bootResults = bootstrap(zr)
+zr_bs = bootResults[0]
 
-MSE_lasso = MeanSquareError(zr, pred_lasso)
-MSEsci_lasso = mean_squared_error(zr, pred_lasso)
-R2_lasso = R2score(zr, pred_lasso)
-R2sci_lasso = r2_score(zr, pred_lasso)
+# # Finding the predicted values using different methods based on bootstrap data
+# beta_ls_bs = np.linalg.inv( X.T @ X ) @ X.T @ zr_bs
+# pred_ls_bs = X @ beta_ls_bs     # How do I know which of all the models in X gives me this value?
+# pred_lsSK_bs = (LinearRegression(fit_intercept = False).fit(X, zr_bs).predict(X)).flatten()
+# pred_ridge_bs, pred_ridgeSK_bs,lmb_values_bs = HomeMadeRidge(X, zr_bs, sk = True)
+# pred_lasso_bs = (Lasso(alpha = 0.01, fit_intercept = False).fit(X, zr_bs).predict(X)).flatten()  #Which alpha should I use and what does it do?
 
-print ("Lasso:")
-print ("MSE: \n", MSE_lasso)
-print ("SciKit MSE: \n", MSEsci_lasso)
-print ("R2score: \n", R2_lasso)
-print ("SciKit R2score: \n", R2sci_lasso)
+
+
+# sigma_sq = variance(zr, pred_ls, X.shape[1] - 1)   #Here I assume X has dim (N * p + 1), and hence take -1 from X.shape[1], but is this correct?
+# var_beta = np.linalg.inv( X.T @ X) * sigma_sq
+# MSE_ls = MeanSquareError(zr, pred_ls)
+# MSEsci_ls = mean_squared_error(zr, pred_ls)
+# R2_ls = R2score(zr, pred_ls)
+# R2sci_ls = r2_score(zr, pred_ls)
+
+# #print ("Var(beta): \n", var_beta)
+
+# # print ("OLS:")
+# # print ("MSE: \n", MSE_ls)
+# # print ("SciKit MSE: \n", MSEsci_ls)
+# # print ("R2score: \n", R2_ls)
+# # print ("SciKit R2score: \n", R2sci_ls)
+
+# # for i in range(0, pred_ridge.shape[1]):
+# # 	MSE_ri = MeanSquareError(zr, pred_ridge[:, i])
+# # 	MSEsci_ri = mean_squared_error(zr, pred_ridge[:, i])
+# # 	R2_ri = R2score(zr, pred_ridge[:, i])
+# # 	R2sci_ri = r2_score(zr, pred_ridge[:, i])
+
+# # 	print ("Ridge with lambda = %1.2e:" %lmb_values[i])
+# # 	print ("MSE: \n", MSE_ri)
+# # 	print ("SciKit MSE: \n", MSEsci_ri)
+# # 	print ("R2score: \n", R2_ri)
+# # 	print ("SciKit R2score: \n", R2sci_ri)
+# # 	print (" ")
+
+# MSE_lasso = MeanSquareError(zr, pred_lasso)
+# MSEsci_lasso = mean_squared_error(zr, pred_lasso)
+# R2_lasso = R2score(zr, pred_lasso)
+# R2sci_lasso = r2_score(zr, pred_lasso)
+
+# print ("Lasso:")
+# print ("MSE: \n", MSE_lasso)
+# print ("SciKit MSE: \n", MSEsci_lasso)
+# print ("R2score: \n", R2_lasso)
+# print ("SciKit R2score: \n", R2sci_lasso)
 
 #bootResults = bootstrap(x_start, y_start, nBoots = 100)
 
