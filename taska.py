@@ -69,7 +69,7 @@ def R2MSEeval(zr, pred, X, Method = ""):
 	print ("SciKit R2score: \n", R2sci)
 
 
-def bootstrap(zdata, nBoots = 1000):   #If nBoots != 10000 I get problems when doing matrix multiplication. How should I avoid that?
+def bootstrap(X, zdata, nBoots = 1000):   #If nBoots != 10000 I get problems when doing matrix multiplication. How should I avoid that?
 	# bootstrap as found in slide 92 in the lecture notes on Regression
     bootVec = np.zeros(nBoots)
 
@@ -83,6 +83,16 @@ def bootstrap(zdata, nBoots = 1000):   #If nBoots != 10000 I get problems when d
     bootStd = np.std(bootVec)
 
     return [bootVec, bootAvg, bootVar, bootStd]
+
+def X_creator(x, y, k=6):
+
+	X = np.c_[np.ones((n_samples**2, 1))]
+
+	for i in range(1, k):
+		for j in range(0, i+1):
+			X = np.c_[X, x**(i - j)*y**(j)]
+#			print ("x**", (i-j), "*y**", (j))
+
 
 
 n_samples = 100
@@ -98,7 +108,7 @@ y = np.ravel(y_mesh)
 
 print (x.shape, y.shape)
 
-zr = np.ravel(z_mesh)
+zr = z_mesh.reshape(-1, 1)
 
 # Centering x and y. Why do we need to do this?
 # This is added to give a common frame of reference, not needed
@@ -109,6 +119,7 @@ zr = np.ravel(z_mesh)
 
 #Creating the vector
 #np.c_ sets each element as a column
+X_creator(x, y)
 X = np.c_[np.ones((n_samples**2,1)), x, x**2, x**3, x**4, x**5,
 								  y, y**2, y**3, y**4, y**5,
 								  x*y, x*y**2, x*y**3, x*y**4,
@@ -123,10 +134,12 @@ pred_ridge, pred_ridgeSK,lmb_values = HomeMadeRidge(X, zr, sk = True)
 pred_lasso = (Lasso(alpha = 0.01, fit_intercept = False).fit(X, zr).predict(X)).flatten()  #Which alpha should I use and what does it do?
 
 #Data with noise
-zr_noise = np.array([(0.01*np.random.uniform(low=-0.9999,high = 1) + zr[i]) for i in range(0, len(zr))])
-#zr_noise = zr + 0.01*np.random.rand(n_samples**2, 1)   #Gives shape (10000, 10000), but shouldn't we want only (10000,)?
+#zr_noise = np.array([(0.01*np.random.uniform(low=-0.9999,high = 1) + zr[i]) for i in range(0, len(zr))])
+zr_noise = zr + 0.01*np.random.randn(n_samples**2, 1)   #Gives shape (10000, 10000), but shouldn't we want only (10000,)?
 
-print (np.mean(zr), np.mean(zr_noise))
+print (pred_lasso)
+
+# print (np.mean(zr), np.mean(zr_noise))
 
 # Finding the predicted values using different methods based on noisy data
 beta_ls_noise = np.linalg.inv( X.T @ X ) @ X.T @ zr_noise
@@ -135,11 +148,11 @@ pred_lsSK_noise = (LinearRegression(fit_intercept = False).fit(X, zr_noise).pred
 pred_ridge_noise, pred_ridgeSK_noise,lmb_values_noise = HomeMadeRidge(X, zr_noise, sk = True)
 pred_lasso_noise = (Lasso(alpha = 0.01, fit_intercept = False).fit(X, zr_noise).predict(X)).flatten()  #Which alpha should I use and what does it do?
 
+print (pred_lasso_noise)
 
-
-#Bootstrap resampling
-bootResults = bootstrap(zr)
-zr_bs = bootResults[0]
+# #Bootstrap resampling
+# bootResults = bootstrap(zr)
+# zr_bs = bootResults[0]
 
 # # Finding the predicted values using different methods based on bootstrap data
 # beta_ls_bs = np.linalg.inv( X.T @ X ) @ X.T @ zr_bs
@@ -147,6 +160,14 @@ zr_bs = bootResults[0]
 # pred_lsSK_bs = (LinearRegression(fit_intercept = False).fit(X, zr_bs).predict(X)).flatten()
 # pred_ridge_bs, pred_ridgeSK_bs,lmb_values_bs = HomeMadeRidge(X, zr_bs, sk = True)
 # pred_lasso_bs = (Lasso(alpha = 0.01, fit_intercept = False).fit(X, zr_bs).predict(X)).flatten()  #Which alpha should I use and what does it do?
+
+
+# #Getting real terrain data
+
+
+
+
+
 
 
 
