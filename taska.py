@@ -69,15 +69,23 @@ def R2MSEeval(zr, pred, X, Method = ""):
 	print ("SciKit R2score: \n", R2sci)
 
 
-def bootstrap(X, zdata, nBoots = 1000):   #If nBoots != 10000 I get problems when doing matrix multiplication. How should I avoid that?
-	# bootstrap as found in slide 92 in the lecture notes on Regression
+def bootstrap(X, zdata, Method, nBoots = 1000):
     bootVec = np.zeros(nBoots)
+
+    bootIndexes = np.linspace(0, len(zdata), len(zdata) + 1)
 
     # Choose random elements from the data-array, one element may be
     # chosen more than once. 
     for k in range(0,nBoots):
-    	bootVec[k] = np.average(np.random.choice(zdata, len(zdata)))
-    
+    	bootVec[k] = np.random.choice(bootIndexes, len(bootIndexes))
+    	X_train    = X[bootVec]
+    	zr_train   = zr[bootVec]
+
+    	test_index = [j for j in bootIndexes if j not in bootVec[k]]
+
+    	X_test = X[test_index]
+
+
     bootAvg = np.average(bootVec)
     bootVar = np.var(bootVec)
     bootStd = np.std(bootVec)
