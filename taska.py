@@ -5,6 +5,39 @@ from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.linear_model import Lasso, Ridge, LinearRegression
+from sys import stdout
+
+
+class HomeMadeOLS():
+	def __init__(self):
+
+		self.beta = 0
+		self.pred = 0
+
+	def fit(self, X, zr):
+		self.beta = np.linalg.inv( X.T @ X ) @ X.T @ zr
+
+		return self
+
+	def predict(self, X):
+		self.pred = X @ self.beta
+
+		return self
+
+class HomeMadeRidge():
+	def __init__(self):
+
+		self.beta = 0
+		self.pred = 0
+
+	def fit(self, X, zr, lmb = 1e-3):
+		Id_mat = np.eye(X.shape[1])
+		self.beta = (np.linalg.inv(X.T @ X + lmb*Id_mat) @ X.T @ zr).flatten()
+
+	def predict(self, X):
+		self.pred = X @ self.beta
+
+		return self
 
 def FrankeFunction(x,y):
 	#Given from the project1.pdf
@@ -33,64 +66,130 @@ def R2score(y, y_hat):
 	# R^2 score as defined by project 1
 	return 1 - np.sum((y - y_hat)**2)/np.sum((y - mean_val(y))**2)
 
-def HomeMadeRidge(X, zr, sk = False):
-	lmb_values = [1e-4, 1e-3, 1e-2, 1e-1, 1, 1e1, 1e2, 1e3, 1e4]
-	num_values = len(lmb_values)
-	beta_ridge = np.zeros((X.shape[1], num_values))
+
+def HomeMadeRidge(X, zr, lmb_values):
 
 	Id_mat = np.eye(X.shape[1])
-
-	for i in range(0, num_values):
-		beta_ridge[:, i] = (np.linalg.inv(X.T @ X + lmb_values[i]*Id_mat) @ X.T @ zr).flatten()
+	beta_ridge[:, i] = (np.linalg.inv(X.T @ X + lmb_values*Id_mat) @ X.T @ zr).flatten()
 
 	pred_ridge = X @ beta_ridge   #Why not RSS like in the book at equation 3.43?
 
-	if sk == True:
-		pred_ridgeSK = np.zeros((X.shape[0], num_values))
-		for i in range(0, num_values):
-			pred_ridgeSK[:, i] = (Ridge(alpha=lmb_values[i], fit_intercept = False).fit(X, zr).predict(X)).flatten()
-		
-		return pred_ridge, pred_ridgeSK, lmb_values
-	else:
-		return pred_ridge, lmb_values
+	return pred_ridge, lmb_values
 
-def R2MSEeval(zr, pred, X, Method = ""):
-	sigma_sq = variance(zr, pred, X.shape[1] - 1)   #Here I assume X has dim (N * p + 1), and hence take -1 from X.shape[1], but is this correct?
-	var_beta = np.linalg.inv( X.T @ X) * sigma_sq
+
+def R2MSEeval(zr, pred, method = "", printer = False, sk = False):
 	MSE = MeanSquareError(zr, pred)
-	MSEsci = mean_squared_error(zr, pred)
 	R2 = R2score(zr, pred)
-	R2sci = r2_score(zr, pred)	
+	
+	if printer:
+		print (Method)
+		print ("MSE: \n", MSE)
+		print ("R2score: \n", R2)
 
-	print (Method)
-	print ("MSE: \n", MSE)
-	print ("SciKit MSE: \n", MSEsci)
-	print ("R2score: \n", R2)
-	print ("SciKit R2score: \n", R2sci)
+		return MSE, R2
+
+	elif sk and not printer:
+		MSEsci = mean_squared_error(zr, pred)
+		R2sci = r2_score(zr, pred)	
+
+		return MSE, MSEsci, R2, R2sci
+
+	elif printer and sk:
+		print (Method)
+		print ("MSE: \n", MSE)
+		print ("SciKit MSE: \n", MSEsci)
+		print ("R2score: \n", R2)
+		print ("SciKit R2score: \n", R2sci)
+
+		return MSE, MSEsci, R2, R2sci
+
+	else:
+		return MSE, R2
 
 
-def bootstrap(X, zdata, Method, nBoots = 1000):
-    bootVec = np.zeros(nBoots)
+def bootstrap(X, zdata, method, lmb = 1e-3, alpha = 1e-3, nBoots = 100, sk = True):
+    bootVec = np.zeros(int(np.floor(0.6*len(zdata))))
+    #bootVec = np.array([np.zeros(len(zdata)+ 1) for i in range(0, nBoots)])
 
-    bootIndexes = np.linspace(0, len(zdata), len(zdata) + 1)
+    bootIndexes = np.linspace(0, len(zdata) - 1, len(zdata), dtype = int)
 
-    # Choose random elements from the data-array, one element may be
-    # chosen more than once. 
+    MSE = np.zeros(nBoots)
+    MSE_SK = np.zeros(nBoots)
+    R2 = np.zeros(nBoots)
+    R2_SK = np.zeros(nBoots)
+
+    progress_tracker = np.floor(nBoots/100.0)
+
     for k in range(0,nBoots):
-    	bootVec[k] = np.random.choice(bootIndexes, len(bootIndexes))
+
+    	if k == progress_tracker:
+    		print ("Progress = %d%%" %np.floor(k/(nBoots/100.0)), end = '\r')
+    		progress_tracker += np.floor(nBoots/100.0)
+
+    	# Choose random elements from the data-array, one element may be
+    	# chosen more than once. 
+    	bootVec = np.random.choice(bootIndexes, int(np.floor(0.6*len(bootIndexes))))
     	X_train    = X[bootVec]
     	zr_train   = zr[bootVec]
 
-    	test_index = [j for j in bootIndexes if j not in bootVec[k]]
+    	test_index = [j for j in bootIndexes if j not in bootVec]
 
     	X_test = X[test_index]
+    	zr_test = zr[test_index]
+
+    	if method == "OLS" and not sk:
+    		pred_OLS = HomeMadeOLS().fit(X_train, zr_train).predict(X_test).pred
+    		MSE[k], R2[k] = R2MSEeval(zr_test, pred_OLS)
+
+    	elif method == "OLS" and sk:
+    		pred_OLS_SK = (LinearRegression(fit_intercept = False).fit(X_train, zr_train).predict(X_test)).flatten()
+    		MSE_SK[k], R2_SK[k] = R2MSEeval(zr_test, pred_OLS_SK)
+
+    	elif method == "Ridge" and not sk:
+    		pred_ridge = HomeMadeOLS().fit(X_train, zr_train, lmb).predict(X_test).pred
+    		MSE[k], R2[k] = R2MSEeval(pred_ridge, zr_test)
+
+    	elif method == "Ridge" and sk:
+    		pred_ridge_SK = (Ridge(alpha = alpha, fit_intercept = False).fit(X_train, zr_train).predict(X_test)).flatten()
+    		MSE_SK[k], R2_SK[k] = R2MSEeval(pred_ridge_SK, zr_test)
+
+    	elif method == "Lasso" and not sk:
+    		print ("Sorry, but you have to use scikit's Lasso")
+    		sk = True
+
+    	elif method == "Lasso" and sk:
+    		pred_lasso_SK = (Lasso(alpha = alpha, fit_intercept = False).fit(X, zr_noise).predict(X)).flatten()
+    		MSE_SK[k], R2_SK[k] = R2MSEeval(pred_lasso_SK, zr_test)
+    	
+    	else:
+    		print ("Please use either OLS, Ridge or Lasso as your method")
 
 
-    bootAvg = np.average(bootVec)
-    bootVar = np.var(bootVec)
-    bootStd = np.std(bootVec)
+    bootMSE_avg = np.average(MSE)
+    bootR2_avg = np.average(R2)
+    bootMSE_SK_avg = np.average(MSE_SK)
+    bootR2_SK_avg = np.average(R2_SK)
 
-    return [bootVec, bootAvg, bootVar, bootStd]
+    bootMSE_var = np.var(MSE)
+    bootR2_var = np.var(R2)
+    bootMSE_SK_var = np.var(MSE_SK)
+    bootR2_SK_var = np.var(R2_SK)
+
+    bootMSE_std = np.std(MSE)
+    bootR2_std = np.std(R2)
+    bootMSE_SK_std = np.std(MSE_SK)
+    bootR2_SK_std = np.std(R2_SK)
+
+
+    if not sk:
+    	print (bootMSE_avg, bootMSE_std, bootMSE_var, bootR2_avg, bootR2_std, bootR2_var)
+    if sk:
+    	print (bootMSE_SK_avg, bootMSE_SK_std, bootMSE_SK_var, bootR2_SK_avg, bootR2_SK_std, bootR2_SK_var)
+    # bootAvg = np.average(bootVec)
+    # bootVar = np.var(bootVec)
+    # bootStd = np.std(bootVec)
+
+    # return [bootVec, bootAvg, bootVar, bootStd]
 
 def X_creator(x, y, k=6):
 
@@ -100,6 +199,8 @@ def X_creator(x, y, k=6):
 		for j in range(0, i+1):
 			X = np.c_[X, x**(i - j)*y**(j)]
 #			print ("x**", (i-j), "*y**", (j))
+
+	return X
 
 
 
@@ -127,18 +228,18 @@ zr = z_mesh.reshape(-1, 1)
 
 #Creating the vector
 #np.c_ sets each element as a column
-X_creator(x, y)
-X = np.c_[np.ones((n_samples**2,1)), x, x**2, x**3, x**4, x**5,
-								  y, y**2, y**3, y**4, y**5,
-								  x*y, x*y**2, x*y**3, x*y**4,
-								  y*x**2, y*x**3, y*x**4,
-								  y**2*x**2, y**2*x**3, y**3*x**2]
+X = X_creator(x, y)
+# X = np.c_[np.ones((n_samples**2,1)), x, x**2, x**3, x**4, x**5,
+# 								  y, y**2, y**3, y**4, y**5,
+# 								  x*y, x*y**2, x*y**3, x*y**4,
+# 								  y*x**2, y*x**3, y*x**4,
+# 								  y**2*x**2, y**2*x**3, y**3*x**2]
 
 # Finding the predicted values using different methods
 beta_ls = np.linalg.inv( X.T @ X ) @ X.T @ zr
 pred_ls = X @ beta_ls     # How do I know which of all the models in X gives me this value?
 pred_lsSK = (LinearRegression(fit_intercept = False).fit(X, zr).predict(X)).flatten()
-pred_ridge, pred_ridgeSK,lmb_values = HomeMadeRidge(X, zr, sk = True)
+# pred_ridge, pred_ridgeSK,lmb_values = HomeMadeRidge(X, zr)
 pred_lasso = (Lasso(alpha = 0.01, fit_intercept = False).fit(X, zr).predict(X)).flatten()  #Which alpha should I use and what does it do?
 
 #Data with noise
@@ -153,10 +254,12 @@ print (pred_lasso)
 beta_ls_noise = np.linalg.inv( X.T @ X ) @ X.T @ zr_noise
 pred_ls_noise = X @ beta_ls_noise     # How do I know which of all the models in X gives me this value?
 pred_lsSK_noise = (LinearRegression(fit_intercept = False).fit(X, zr_noise).predict(X)).flatten()
-pred_ridge_noise, pred_ridgeSK_noise,lmb_values_noise = HomeMadeRidge(X, zr_noise, sk = True)
+# pred_ridge_noise, lmb_values_noise = HomeMadeRidge(X, zr_noise)
 pred_lasso_noise = (Lasso(alpha = 0.01, fit_intercept = False).fit(X, zr_noise).predict(X)).flatten()  #Which alpha should I use and what does it do?
 
 print (pred_lasso_noise)
+
+#bootstrap(X, zr, method = "OLS")
 
 # #Bootstrap resampling
 # bootResults = bootstrap(zr)
@@ -173,26 +276,26 @@ print (pred_lasso_noise)
 # #Getting real terrain data
 
 
+print (np.average(pred_ls - pred_lsSK))
 
 
 
 
 
+sigma_sq = variance(zr, pred_ls, X.shape[1] - 1)   #Here I assume X has dim (N * p + 1), and hence take -1 from X.shape[1], but is this correct?
+var_beta = np.linalg.inv( X.T @ X) * sigma_sq
+MSE_ls = MeanSquareError(zr, pred_ls)
+MSEsci_ls = mean_squared_error(zr, pred_ls)
+R2_ls = R2score(zr, pred_ls)
+R2sci_ls = r2_score(zr, pred_ls)
 
-# sigma_sq = variance(zr, pred_ls, X.shape[1] - 1)   #Here I assume X has dim (N * p + 1), and hence take -1 from X.shape[1], but is this correct?
-# var_beta = np.linalg.inv( X.T @ X) * sigma_sq
-# MSE_ls = MeanSquareError(zr, pred_ls)
-# MSEsci_ls = mean_squared_error(zr, pred_ls)
-# R2_ls = R2score(zr, pred_ls)
-# R2sci_ls = r2_score(zr, pred_ls)
+#print ("Var(beta): \n", var_beta)
 
-# #print ("Var(beta): \n", var_beta)
-
-# # print ("OLS:")
-# # print ("MSE: \n", MSE_ls)
-# # print ("SciKit MSE: \n", MSEsci_ls)
-# # print ("R2score: \n", R2_ls)
-# # print ("SciKit R2score: \n", R2sci_ls)
+print ("OLS:")
+print ("MSE: \n", MSE_ls)
+print ("SciKit MSE: \n", MSEsci_ls)
+print ("R2score: \n", R2_ls)
+print ("SciKit R2score: \n", R2sci_ls)
 
 # # for i in range(0, pred_ridge.shape[1]):
 # # 	MSE_ri = MeanSquareError(zr, pred_ridge[:, i])
