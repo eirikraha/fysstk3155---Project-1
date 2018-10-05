@@ -7,6 +7,7 @@ from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.linear_model import Lasso, Ridge, LinearRegression
 from sklearn.utils import resample
 from sys import stdout, argv, exit
+from imageio import imread
 
 
 class HomeMadeOLS():
@@ -25,6 +26,18 @@ class HomeMadeOLS():
 
 		return self
 
+	def ConfIntBeta(self, X, zr, pred):
+		N = X.shape[0]
+		p = X.shape[1]
+
+
+		variance = 1./(N - p - 1) * np.sum((zr - pred)**2)
+
+		var_beta = [(np.linalg.inv(X.T @ X)*variance)[i, i] for i in range(0, p)]
+
+		self.conf_intervals = [[float(self.beta[i]) - 2*np.sqrt(var_beta[i]), 
+							float(self.beta[i]) + 2*np.sqrt(var_beta[i])] for i in range(0, len(var_beta))]
+
 class HomeMadeRidge():
 	def __init__(self):
 
@@ -41,6 +54,21 @@ class HomeMadeRidge():
 		self.pred = X @ self.beta
 
 		return self
+
+class MapDataImport():
+	def __init__(self):
+		b = 0
+
+	def ImportData(self, filename = '../MachineLearning/doc/Projects/2018/Project1/DataFiles/SRTM_data_Norway_1.tif'):
+		self.terrain = imread(filename)
+
+	def PlotTerrain(self):
+		plt.figure()
+		plt.title('Terrain over Norway 1')
+		plt.imshow(self.terrain, cmap='gray')
+		plt.xlabel('X')
+		plt.ylabel('Y')
+		plt.show()
 
 def FrankeFunction(x,y):
 	#Given from the project1.pdf
@@ -89,7 +117,7 @@ def R2MSEeval(zr, pred, sk = False, method = " ", printer = False):
 		MSEsci = mean_squared_error(zr, pred)
 		R2sci = r2_score(zr, pred)	
 
-		return MSE, MSEsci, R2, R2sci
+		return MSEsci, R2sci
 
 	elif printer and sk:
 		MSEsci = mean_squared_error(zr, pred)
@@ -107,7 +135,8 @@ def R2MSEeval(zr, pred, sk = False, method = " ", printer = False):
 		return MSE, R2
 
 
-def bootstrap(X, zdata, method, lmb = 1e-3, alpha = 1e-3, nBoots = 100, sk = True, test_size = 0.60):
+def bootstrap(X, zdata, method, lmb = 1e-3, alpha = 1e-3, nBoots = 1000, 
+				sk = True, test_size = 0.60, output = False, printer = True):
 
 	bootVec = np.zeros(int(np.floor(test_size*len(zdata))))
 	#bootVec = np.array([np.zeros(len(zdata)+ 1) for i in range(0, nBoots)])
@@ -143,6 +172,7 @@ def bootstrap(X, zdata, method, lmb = 1e-3, alpha = 1e-3, nBoots = 100, sk = Tru
 
 		X_, zr_ = resample(X_train, zr_train)
 
+
 		if method == "OLS" and not sk:
 			pred_z[:, k] = HomeMadeOLS().fit(X_, zr_).predict(X_test).pred.flatten()
 			MSE[k], R2[k] = R2MSEeval(zr_test,  pred_z[:, k])
@@ -152,11 +182,11 @@ def bootstrap(X, zdata, method, lmb = 1e-3, alpha = 1e-3, nBoots = 100, sk = Tru
 			MSE_SK[k], R2_SK[k] = R2MSEeval(zr_test.flatten(), pred_z[:, k])
 
 		elif method == "Ridge" and not sk:
-			pred_z[:, k] = HomeMadeOLS().fit(X_, zr_, lmb).predict(X_test).pred.flatten()
+			pred_z[:, k] = HomeMadeRidge().fit(X_, zr_, lmb = lmb).predict(X_test).pred.flatten()
 			MSE[k], R2[k] = R2MSEeval(zr_test, pred_z[:, k])
 
 		elif method == "Ridge" and sk:
-			pred_z[:, k] = (Ridge(alpha = alpha, fit_intercept = False).fit(X_, zr_).predict(X_test)).flatten()
+			pred_z[:, k] = (Ridge(alpha = lmb, fit_intercept = False).fit(X_, zr_).predict(X_test)).flatten()
 			MSE_SK[k], R2_SK[k] = R2MSEeval(zr_test, pred_z[:, k])
 
 		elif method == "Lasso" and not sk:
@@ -191,24 +221,34 @@ def bootstrap(X, zdata, method, lmb = 1e-3, alpha = 1e-3, nBoots = 100, sk = Tru
 	error = np.mean( np.mean((zr_test - pred_z)**2, axis=1, keepdims=True))
 	bias = np.mean((zr_test - np.mean(pred_z, axis=1, keepdims=True))**2)
 	variance = np.mean( np.var(pred_z, axis=1, keepdims=True))
-	print('Error:', error)
-	print('Bias^2:', bias)
-	print('Var:', variance)
-	print('{} >= {} + {} = {}'.format(error, bias, variance, (bias+variance)))
+
+	if printer:
+		print('Error:', error)
+		print('Bias^2:', bias)
+		print('Var:', variance)
+		print('{} >= {} + {} = {}'.format(error, bias, variance, (bias+variance)))
+
+		if not sk:
+			print ('Diff: ', bootMSE_avg - (bias+variance))
+			print ('Bootstrap MSE: ', bootMSE_avg)
+			print ('Bootstrap MSE std: ', bootMSE_std)
+			print ('Bootstrap MSE var: ', bootMSE_var)
+			print ('Bootstrap R2:', bootR2_avg)
+			print ('Bootstrap R2 std: ', bootR2_std)
+			print ('Bootstrap R2 var: ', bootR2_var)
 
 
+		if sk:
+			print ('Diff: ', bootMSE_SK_avg - (bias+variance))
+			print ('Bootstrap MSE: ', bootMSE_SK_avg, 'std: ', bootMSE_SK_std, 'var: ', bootMSE_SK_var)
+			print ('Bootstrap R2:  ', bootR2_SK_avg, 'std: ', bootR2_SK_std, 'var: ', bootR2_SK_var)
 
-	if not sk:
-		print ('Diff: ', bootMSE_avg - (bias+variance))
-		print (bootMSE_avg, bootMSE_std, bootMSE_var, bootR2_avg, bootR2_std, bootR2_var)
-	if sk:
-		print ('Diff: ', bootMSE_SK_avg - (bias+variance))
-		print (bootMSE_SK_avg, bootMSE_SK_std, bootMSE_SK_var, bootR2_SK_avg, bootR2_SK_std, bootR2_SK_var)
-	# bootAvg = np.average(bootVec)
-	# bootVar = np.var(bootVec)
-	# bootStd = np.std(bootVec)
 
-	# return [bootVec, bootAvg, bootVar, bootStd]
+	if output and not sk:
+		return bootMSE_avg, bootR2_avg
+
+	if output and sk:
+		return bootMSE_SK_avg, bootR2_SK_avg
 
 
 def X_creator(x, y, k=6):
@@ -247,6 +287,7 @@ x_start = np.random.rand(n_samples, 1)
 y_start = np.random.rand(n_samples, 1)
 x_mesh, y_mesh = np.meshgrid(x_start,y_start)
 
+
 z_mesh = FrankeFunction(x_mesh, y_mesh)
 
 x = np.ravel(x_mesh)
@@ -273,7 +314,12 @@ X = X_creator(x, y)
 
 if argv[1] == "a" or argv == "all":
 	#Without noise
-	pred_LS = (HomeMadeOLS().fit(X, zr).predict(X).pred).flatten()
+
+	OLS = HomeMadeOLS().fit(X, zr).predict(X)
+	
+	pred_LS = (OLS.pred).flatten()
+	#beta_conf = OLS.ConfIntBeta(X, zr, pred_LS).conf_intervals
+
 	pred_LS_SK = (LinearRegression(fit_intercept = False).fit(X, zr).predict(X)).flatten()
 
 	#With noise
@@ -292,8 +338,6 @@ if argv[1] == "a" or argv == "all":
 	print ("Bootstrap using OLS with noise:")
 	bootstrap(X, zr_noise, method = "OLS")
 
-	#Still need the Bias and Variance and the confidence intervals of the parameters beta by computing their variances.
-
 ###########################
 #####     Task b)     #####
 ###########################
@@ -301,15 +345,15 @@ if argv[1] == "a" or argv == "all":
 elif argv[1] == "b" or argv == "all":
 	if argv[2] == "plot":
 		#Finding optimal lambda value for the instance without noise
-		lmb_values = np.logspace(-5, -1, 1000)   #Should we use logspace?
+		lmb_values = np.logspace(-5, -1, 100)   #Should we use logspace?
 		R2list = []
 		MSElist = []
 
 		print (len(lmb_values))
 
 		for lmb in lmb_values:
-			pred_ridge = (HomeMadeRidge().fit(X, zr, lmb = lmb).predict(X).pred).flatten()
-			R2, MSE = R2MSEeval(zr, pred_ridge)
+			MSE, R2 = bootstrap(X, zr, lmb = lmb, method = "Ridge", sk = True, 
+								output = True, printer = False)
 			R2list.append(R2)
 			MSElist.append(MSE)
 
@@ -365,13 +409,13 @@ elif argv[1] == "c" or argv == "all":
 	#Plots if neccessary
 	if len(argv) > 1 and argv[2] == "plot":
 		#Finding optimal alpha value for the instance without noise
-		alpha_values = np.logspace(-2, -1, 100)   #Should we use logspace?
+		alpha_values = np.logspace(-4, -1, 10)   #Should we use logspace?
 		R2list = []
 		MSElist = []
 
 		for alpha in alpha_values:
-			pred_lasso = (Lasso(alpha = alpha, fit_intercept = False).fit(X, zr).predict(X)).flatten()
-			R2, MSE = R2MSEeval(zr, pred_lasso)
+			MSE, R2 = bootstrap(X, zr, alpha = alpha, method = "Lasso", sk = True, 
+								output = True, printer = False)
 			R2list.append(R2)
 			MSElist.append(MSE)
 
@@ -397,7 +441,7 @@ elif argv[1] == "c" or argv == "all":
 		#Found the best aplha to be below 1e-3, but those values gives me errors in the scikit lasso.
 		# Did therefore choose a more stable alpha.
 
-	alpha = 1.2e-3
+	alpha = 1e-2
 	#Without noise
 	pred_lasso_SK = (Lasso(alpha = alpha, fit_intercept = False).fit(X, zr).predict(X)).flatten()
 
@@ -419,6 +463,11 @@ elif argv[1] == "c" or argv == "all":
 ###########################
 
 elif argv[1] == "d" or argv == "all":
+
+	terrainReader = MapDataImport()
+	terrainReader.ImportData()
+	terrainReader.PlotTerrain()
+
 	print ("Please, come back later")
 	exit()
 #Import data
@@ -429,8 +478,19 @@ elif argv[1] == "d" or argv == "all":
 ###########################
 
 elif argv[1] == "e" or argv == "all":
-	print ("Please, come back later")
-	exit()
+
+	terrainReader = MapDataImport()
+	terrainReader.ImportData()
+
+	z = terrainReader.terrain
+
+	print(z.shape)
+
+
+	bootstrap(X, z, method = "OLS")
+	bootstrap(X, z, lmb = 1e-4, method = "Ridge")	
+	bootstrap(X, z, alpha = 1e-2, method = "Lasso")
+
 
 # Perform a), b) and c) on data from d).
 
