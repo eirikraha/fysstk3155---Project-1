@@ -5,6 +5,7 @@ from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.linear_model import Lasso, Ridge, LinearRegression
+from sklearn.utils import resample
 from sys import stdout, argv, exit
 
 
@@ -106,89 +107,108 @@ def R2MSEeval(zr, pred, sk = False, method = " ", printer = False):
 		return MSE, R2
 
 
-def bootstrap(X, zdata, method, lmb = 1e-3, alpha = 1e-3, nBoots = 100, sk = True):
-    bootVec = np.zeros(int(np.floor(0.6*len(zdata))))
-    #bootVec = np.array([np.zeros(len(zdata)+ 1) for i in range(0, nBoots)])
+def bootstrap(X, zdata, method, lmb = 1e-3, alpha = 1e-3, nBoots = 100, sk = True, test_size = 0.60):
 
-    bootIndexes = np.linspace(0, len(zdata) - 1, len(zdata), dtype = int)
+	bootVec = np.zeros(int(np.floor(test_size*len(zdata))))
+	#bootVec = np.array([np.zeros(len(zdata)+ 1) for i in range(0, nBoots)])
 
-    MSE = np.zeros(nBoots)
-    MSE_SK = np.zeros(nBoots)
-    R2 = np.zeros(nBoots)
-    R2_SK = np.zeros(nBoots)
+	bootIndexes = np.linspace(0, len(zdata) - 1, len(zdata), dtype = int)
 
-    progress_tracker = np.floor(nBoots/100.0)
+	MSE = np.zeros(nBoots)
+	MSE_SK = np.zeros(nBoots)
+	R2 = np.zeros(nBoots)
+	R2_SK = np.zeros(nBoots)
 
-    for k in range(0,nBoots):
+	progress_tracker = np.floor(nBoots/100.0)
 
-    	if k == progress_tracker:
-    		print ("Progress = %d%%" %np.floor(k/(nBoots/100.0)), end = '\r')
-    		progress_tracker += np.floor(nBoots/100.0)
+	# Choose random elements from the data-array, one element may be
+	# chosen more than once. 
+	bootVec = np.random.choice(bootIndexes, int(np.floor(test_size*len(bootIndexes))), replace = False)
+	X_train    = X[bootVec]
+	zr_train   = zr[bootVec]
 
-    	# Choose random elements from the data-array, one element may be
-    	# chosen more than once. 
-    	bootVec = np.random.choice(bootIndexes, int(np.floor(0.6*len(bootIndexes))))
-    	X_train    = X[bootVec]
-    	zr_train   = zr[bootVec]
+	test_index = [j for j in bootIndexes if j not in bootVec]
 
-    	test_index = [j for j in bootIndexes if j not in bootVec]
+	X_test = X[test_index]
+	zr_test = (zr[test_index]).flatten()
 
-    	X_test = X[test_index]
-    	zr_test = (zr[test_index]).flatten()
-
-    	if method == "OLS" and not sk:
-    		pred_OLS = HomeMadeOLS().fit(X_train, zr_train).predict(X_test).pred.flatten()
-    		MSE[k], R2[k] = R2MSEeval(zr_test, pred_OLS)
-
-    	elif method == "OLS" and sk:
-    		pred_OLS_SK = (LinearRegression(fit_intercept = False).fit(X_train, zr_train).predict(X_test)).flatten()
-    		MSE_SK[k], R2_SK[k] = R2MSEeval(zr_test.flatten(), pred_OLS_SK)
-
-    	elif method == "Ridge" and not sk:
-    		pred_ridge = HomeMadeOLS().fit(X_train, zr_train, lmb).predict(X_test).pred.flatten()
-    		MSE[k], R2[k] = R2MSEeval(pred_ridge, zr_test)
-
-    	elif method == "Ridge" and sk:
-    		pred_ridge_SK = (Ridge(alpha = alpha, fit_intercept = False).fit(X_train, zr_train).predict(X_test)).flatten()
-    		MSE_SK[k], R2_SK[k] = R2MSEeval(pred_ridge_SK, zr_test)
-
-    	elif method == "Lasso" and not sk:
-    		print ("Sorry, but you have to use scikit's Lasso")
-    		sk = True
-
-    	elif method == "Lasso" and sk:
-    		pred_lasso_SK = (Lasso(alpha = alpha, fit_intercept = False).fit(X_train, zr_train).predict(X_test)).flatten()
-    		MSE_SK[k], R2_SK[k] = R2MSEeval(pred_lasso_SK, zr_test)
-    	
-    	else:
-    		print ("Please use either OLS, Ridge or Lasso as your method")
+	pred_z = np.empty((zr_test.shape[0], nBoots))
 
 
-    bootMSE_avg = np.average(MSE)
-    bootR2_avg = np.average(R2)
-    bootMSE_SK_avg = np.average(MSE_SK)
-    bootR2_SK_avg = np.average(R2_SK)
+	for k in range(0,nBoots):
 
-    bootMSE_var = np.var(MSE)
-    bootR2_var = np.var(R2)
-    bootMSE_SK_var = np.var(MSE_SK)
-    bootR2_SK_var = np.var(R2_SK)
+		if k == progress_tracker:
+			print ("Progress = %d%%" %np.floor(k/(nBoots/100.0)), end = '\r')
+			progress_tracker += np.floor(nBoots/100.0)
 
-    bootMSE_std = np.std(MSE)
-    bootR2_std = np.std(R2)
-    bootMSE_SK_std = np.std(MSE_SK)
-    bootR2_SK_std = np.std(R2_SK)
+		X_, zr_ = resample(X_train, zr_train)
+
+		if method == "OLS" and not sk:
+			pred_z[:, k] = HomeMadeOLS().fit(X_, zr_).predict(X_test).pred.flatten()
+			MSE[k], R2[k] = R2MSEeval(zr_test,  pred_z[:, k])
+
+		elif method == "OLS" and sk:
+			pred_z[:, k] = (LinearRegression(fit_intercept = False).fit(X_, zr_).predict(X_test)).flatten()
+			MSE_SK[k], R2_SK[k] = R2MSEeval(zr_test.flatten(), pred_z[:, k])
+
+		elif method == "Ridge" and not sk:
+			pred_z[:, k] = HomeMadeOLS().fit(X_, zr_, lmb).predict(X_test).pred.flatten()
+			MSE[k], R2[k] = R2MSEeval(zr_test, pred_z[:, k])
+
+		elif method == "Ridge" and sk:
+			pred_z[:, k] = (Ridge(alpha = alpha, fit_intercept = False).fit(X_, zr_).predict(X_test)).flatten()
+			MSE_SK[k], R2_SK[k] = R2MSEeval(zr_test, pred_z[:, k])
+
+		elif method == "Lasso" and not sk:
+			print ("Sorry, but you have to use scikit's Lasso")
+			sk = True
+
+		elif method == "Lasso" and sk:
+			pred_z[:, k] = (Lasso(alpha = alpha, fit_intercept = False).fit(X_, zr_).predict(X_test)).flatten()
+			MSE_SK[k], R2_SK[k] = R2MSEeval(zr_test, pred_z[:, k])
+		
+		else:
+			print ("Please use either OLS, Ridge or Lasso as your method")
 
 
-    if not sk:
-    	print (bootMSE_avg, bootMSE_std, bootMSE_var, bootR2_avg, bootR2_std, bootR2_var)
-    if sk:
-    	print (bootMSE_SK_avg, bootMSE_SK_std, bootMSE_SK_var, bootR2_SK_avg, bootR2_SK_std, bootR2_SK_var)
-    # bootAvg = np.average(bootVec)
-    # bootVar = np.var(bootVec)
-    # bootStd = np.std(bootVec)
+	bootMSE_avg = np.average(MSE)
+	bootR2_avg = np.average(R2)
+	bootMSE_SK_avg = np.average(MSE_SK)
+	bootR2_SK_avg = np.average(R2_SK)
 
-    # return [bootVec, bootAvg, bootVar, bootStd]
+	bootMSE_var = np.var(MSE)
+	bootR2_var = np.var(R2)
+	bootMSE_SK_var = np.var(MSE_SK)
+	bootR2_SK_var = np.var(R2_SK)
+
+	bootMSE_std = np.std(MSE)
+	bootR2_std = np.std(R2)
+	bootMSE_SK_std = np.std(MSE_SK)
+	bootR2_SK_std = np.std(R2_SK)
+
+	zr_test = zr_test.reshape(-1, 1)
+
+	error = np.mean( np.mean((zr_test - pred_z)**2, axis=1, keepdims=True))
+	bias = np.mean((zr_test - np.mean(pred_z, axis=1, keepdims=True))**2)
+	variance = np.mean( np.var(pred_z, axis=1, keepdims=True))
+	print('Error:', error)
+	print('Bias^2:', bias)
+	print('Var:', variance)
+	print('{} >= {} + {} = {}'.format(error, bias, variance, (bias+variance)))
+
+
+
+	if not sk:
+		print ('Diff: ', bootMSE_avg - (bias+variance))
+		print (bootMSE_avg, bootMSE_std, bootMSE_var, bootR2_avg, bootR2_std, bootR2_var)
+	if sk:
+		print ('Diff: ', bootMSE_SK_avg - (bias+variance))
+		print (bootMSE_SK_avg, bootMSE_SK_std, bootMSE_SK_var, bootR2_SK_avg, bootR2_SK_std, bootR2_SK_var)
+	# bootAvg = np.average(bootVec)
+	# bootVar = np.var(bootVec)
+	# bootStd = np.std(bootVec)
+
+	# return [bootVec, bootAvg, bootVar, bootStd]
 
 
 def X_creator(x, y, k=6):
@@ -418,6 +438,7 @@ elif argv[1] == "e" or argv == "all":
 else:
 	print ("Please write a, b, c, d or e after filename in terminal")
 	exit()
+
 
 
 # X = np.c_[np.ones((n_samples**2,1)), x, x**2, x**3, x**4, x**5,
