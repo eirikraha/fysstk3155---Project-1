@@ -6,8 +6,10 @@ from matplotlib.ticker import LinearLocator, FormatStrFormatter
 from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.linear_model import Lasso, Ridge, LinearRegression
 from sklearn.utils import resample
+from sklearn.model_selection import train_test_split
 from sys import stdout, argv, exit
 from imageio import imread
+
 
 
 class HomeMadeOLS():
@@ -68,6 +70,25 @@ class MapDataImport():
 		plt.imshow(self.terrain, cmap='gray')
 		plt.xlabel('X')
 		plt.ylabel('Y')
+		plt.show()
+
+
+class HarryPlotter():
+	def __init__(self):
+		b = 0
+
+	def Single(self, x, y ,z):
+		fig = plt.figure()
+		ax = fig.gca(projection='3d')
+		#x, y = np.meshgrid(x, y)
+		surf = ax.plot_surface(x, y, z, cmap=cm.coolwarm,
+		linewidth=0, antialiased=False)
+		# Customize the z axis.
+		ax.set_zlim(-0.10, 1.40)
+		ax.zaxis.set_major_locator(LinearLocator(10))
+		ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
+		# Add a color bar which maps values to colors.
+		fig.colorbar(surf, shrink=0.5, aspect=5)
 		plt.show()
 
 def FrankeFunction(x,y):
@@ -136,7 +157,7 @@ def R2MSEeval(zr, pred, sk = False, method = " ", printer = False):
 
 
 def bootstrap(X, zdata, method, lmb = 1e-3, alpha = 1e-3, nBoots = 1000, 
-				sk = True, test_size = 0.60, output = False, printer = True):
+				sk = True, test_size = 0.40, output = False, printer = True):
 
 	bootVec = np.zeros(int(np.floor(test_size*len(zdata))))
 	#bootVec = np.array([np.zeros(len(zdata)+ 1) for i in range(0, nBoots)])
@@ -152,14 +173,21 @@ def bootstrap(X, zdata, method, lmb = 1e-3, alpha = 1e-3, nBoots = 1000,
 
 	# Choose random elements from the data-array, one element may be
 	# chosen more than once. 
-	bootVec = np.random.choice(bootIndexes, int(np.floor(test_size*len(bootIndexes))), replace = False)
-	X_train    = X[bootVec]
-	zr_train   = zr[bootVec]
+	#bootVec = np.random.choice(bootIndexes, int(np.floor(test_size*len(bootIndexes))), replace = False)
 
-	test_index = [j for j in bootIndexes if j not in bootVec]
+	X_train, X_test, zr_train, zr_test = train_test_split(X, zdata, test_size=test_size)
+	
+	print (X.shape, zdata.shape)
 
-	X_test = X[test_index]
-	zr_test = (zr[test_index]).flatten()
+	# X_train    = X[bootVec]
+	# zr_train   = zdata[bootVec]
+
+	# test_index = [j for j in bootIndexes if j not in bootVec]
+
+	# print ("Test Index finder done")
+
+	# X_test = X[test_index]
+	# zr_test = (zdata[test_index]).flatten()
 
 	pred_z = np.empty((zr_test.shape[0], nBoots))
 
@@ -171,7 +199,6 @@ def bootstrap(X, zdata, method, lmb = 1e-3, alpha = 1e-3, nBoots = 1000,
 			progress_tracker += np.floor(nBoots/100.0)
 
 		X_, zr_ = resample(X_train, zr_train)
-
 
 		if method == "OLS" and not sk:
 			pred_z[:, k] = HomeMadeOLS().fit(X_, zr_).predict(X_test).pred.flatten()
@@ -251,9 +278,9 @@ def bootstrap(X, zdata, method, lmb = 1e-3, alpha = 1e-3, nBoots = 1000,
 		return bootMSE_SK_avg, bootR2_SK_avg
 
 
-def X_creator(x, y, k=6):
+def X_creator(x, y, n_samples1 = 100, n_samples2 = 100, k=6):
 
-	X = np.c_[np.ones((n_samples**2, 1))]
+	X = np.c_[np.ones((n_samples1*n_samples2, 1))]
 
 	for i in range(1, k):
 		for j in range(0, i+1):
@@ -482,14 +509,61 @@ elif argv[1] == "e" or argv == "all":
 	terrainReader = MapDataImport()
 	terrainReader.ImportData()
 
-	z = terrainReader.terrain
+	n_patches = 5
 
-	print(z.shape)
+	#z = terrainReader.terrain.reshape(-1, 1)
 
+	[n, m] = terrainReader.terrain.shape
 
-	bootstrap(X, z, method = "OLS")
-	bootstrap(X, z, lmb = 1e-4, method = "Ridge")	
-	bootstrap(X, z, alpha = 1e-2, method = "Lasso")
+	patch_n = int(np.floor(n/n_patches))
+	patch_m = int(np.floor(m/n_patches))
+
+	terrain = []
+
+	print (patch_n, patch_m, terrainReader.terrain.shape)
+
+	for i in range(0, n_patches):
+		print (i*patch_n, (i+1)*patch_n)
+
+		terrain.append((terrainReader.terrain)[i*patch_n:(i+1)*patch_n, i*patch_m:(i+1)*patch_m])
+		#Will loose the last row by doing it like this
+
+	rows = np.linspace(0, 1, patch_n)
+	cols = np.linspace(0, 1, patch_m)
+
+	[C, R] = np.meshgrid(cols, rows)
+
+	x = C.reshape(-1, 1)
+	y = R.reshape(-1, 1)
+
+	num_data = n*m
+
+	X = X_creator(x, y, n_samples1 = patch_n, n_samples2 = patch_m)
+
+	
+	for i in terrain:
+		z = i.flatten()
+
+		print(z.shape)
+		print (X.shape)
+
+		bootstrap(X, z, method = "OLS") 
+		bootstrap(X, z, lmb = 1e-4, method = "Ridge")	
+		bootstrap(X, z, alpha = 1e-2, method = "Lasso")
+
+		
+
+		pred = (LinearRegression(fit_intercept = False).fit(X, z).predict(X)).flatten()
+
+		print (pred.shape)
+
+	# plt.figure()
+	# plt.title('Terrain over Norway 1')
+	# plt.imshow(pred.reshape(-1, 1), cmap='gray')
+	# plt.xlabel('X')
+	# plt.ylabel('Y')
+	# plt.show()
+
 
 
 # Perform a), b) and c) on data from d).
