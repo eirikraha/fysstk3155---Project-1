@@ -3,12 +3,14 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
+import matplotlib.ticker as mtick
 from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.linear_model import Lasso, Ridge, LinearRegression
 from sklearn.utils import resample
 from sklearn.model_selection import train_test_split
 from sys import stdout, argv, exit
 from imageio import imread
+import time
 from classes import *
 from functions import *
 
@@ -27,8 +29,9 @@ elif len(argv) == 2:
 
 	argv.append("noplot")
 
-fs1 = 20
-fs2 = 16
+fs1 = 22
+fs2 = 18
+fs3 = 12
 
 
 n_samples = 100
@@ -64,7 +67,6 @@ X = X_creator(x, y)
 
 if argv[1] == "a" or argv == "all":
 	#Without noise
-
 	OLS = HomeMadeOLS().fit(X, zr).predict(X)
 	
 	pred_LS = (OLS.pred).flatten()
@@ -76,17 +78,22 @@ if argv[1] == "a" or argv == "all":
 	pred_LS_noise = (HomeMadeOLS().fit(X, zr_noise).predict(X).pred).flatten()
 	pred_LS_noise_SK = (LinearRegression(fit_intercept = False).fit(X, zr_noise).predict(X)).flatten()
 
+	filename = '../benchmarks/taska.txt'
+	f = open(filename, 'w')
+	f.write('# Initial line for OLS on FrankeFunction \n')
+	f.close()
+
 	#Finding MSE and R2
-	R2MSEeval(zr, pred_LS, method = "OLS", printer = True, sk = True)   #Should we compare with zr_noise?"
-	R2MSEeval(zr, pred_LS_SK, method = "OLS from SK", printer = True, sk = True)
-	R2MSEeval(zr, pred_LS_noise, method = "OLS with noise", printer = True, sk = True)
-	R2MSEeval(zr, pred_LS_noise_SK, method = "OLS from SK with noise", printer = True, sk = True)
+	R2MSEeval(zr, pred_LS, filename, method = "OLS", printer = True, sk = True)   #Should we compare with zr_noise?"
+	R2MSEeval(zr, pred_LS_SK, filename, method = "OLS from SK", printer = True, sk = True)
+	R2MSEeval(zr, pred_LS_noise, filename, method = "OLS with noise", printer = True, sk = True)
+	R2MSEeval(zr, pred_LS_noise_SK, filename, method = "OLS from SK with noise", printer = True, sk = True)
 
 
 	print ("Bootstrap using OLS without noise:")
-	bootstrap(X, zr, method = "OLS")
+	bootstrap(X, zr, filename = filename, method = "OLS")
 	print ("Bootstrap using OLS with noise:")
-	bootstrap(X, zr_noise, method = "OLS")
+	bootstrap(X, zr_noise, filename = filename, method = "OLS")
 
 ###########################
 #####     Task b)     #####
@@ -95,7 +102,7 @@ if argv[1] == "a" or argv == "all":
 elif argv[1] == "b" or argv == "all":
 	if argv[2] == "plot":
 		#Finding optimal lambda value for the instance without noise
-		lmb_values = np.logspace(-5, -1, 100)   #Should we use logspace?
+		lmb_values = np.logspace(-5, -1, 10)   #Should we use logspace?
 		R2list = []
 		MSElist = []
 
@@ -114,8 +121,10 @@ elif argv[1] == "b" or argv == "all":
 		ax.set_title(r"R2 as a function of $\lambda$", fontsize = fs1)
 		ax.set_xlabel(r"$\lambda$", fontsize = fs2)
 		ax.set_ylabel(r"R2", fontsize = fs2)
+		ax.tick_params(labelsize = fs3)
 		ax.legend()
 
+		plt.tight_layout()
 		fig.savefig('../figures/RidgeR2.png')
 
 		fig2, ax2 = plt.subplots()
@@ -123,36 +132,52 @@ elif argv[1] == "b" or argv == "all":
 		ax2.set_title(r"MSE as a function of $\lambda$", fontsize = fs1)
 		ax2.set_xlabel(r"$\lambda$", fontsize = fs2)
 		ax2.set_ylabel(r"MSE", fontsize = fs2)
+		ax2.tick_params(labelsize = fs3)
+		#ax2.yaxis.set_major_formatter(mtick.FormatStrFormatter('%1.1e'))
 		ax2.legend()
 
+		plt.tight_layout()
 		fig2.savefig('../figures/RidgeMSE.png')
-		plt.show()
+		
+		#plt.show()
 
 		#Finds the best lambda to be about 1e-4
 
+	lmb = 1e-4
+
+	filename = "../benchmarks/taskb_lambda%1.2e.txt" %(lmb)
+	f = open(filename, 'w')
+	f.write("#Task b")
+	f.close()
 
 	#Without noise
-	pred_ridge = (HomeMadeRidge().fit(X, zr, lmb = 1e-4).predict(X).pred).flatten()
+	pred_ridge = (HomeMadeRidge().fit(X, zr, lmb = lmb).predict(X).pred).flatten()
 	pred_ridge_SK = (Ridge(fit_intercept = False).fit(X, zr).predict(X)).flatten()
 
 	#With noise
-
 	#OBS! Remeber to vary noise
-
-	pred_ridge_noise = (HomeMadeRidge().fit(X, zr_noise, lmb = 1e-4).predict(X).pred).flatten()
+	pred_ridge_noise = (HomeMadeRidge().fit(X, zr_noise, lmb = lmb).predict(X).pred).flatten()
 	pred_ridge_noise_SK = (Ridge(fit_intercept = False).fit(X, zr_noise).predict(X)).flatten()
 
 	#Finding MSE and R2
-	R2MSEeval(zr, pred_ridge, method = "Ridge", printer = True, sk = True)
-	R2MSEeval(zr, pred_ridge_SK, method = "Ridge from SK", printer = True, sk = True)
-	R2MSEeval(zr, pred_ridge_noise, method = "Ridge with noise", printer = True, sk = True)
-	R2MSEeval(zr, pred_ridge_noise_SK, method = "Ridge from SK with noise", printer = True, sk = True)
+	R2MSEeval(zr, pred_ridge, filename, method = "Ridge", printer = True, sk = True)
+	R2MSEeval(zr, pred_ridge_SK, filename, method = "Ridge from SK", printer = True, sk = True)
+	R2MSEeval(zr, pred_ridge_noise, filename, method = "Ridge with noise", printer = True, sk = True)
+	R2MSEeval(zr, pred_ridge_noise_SK, filename, method = "Ridge from SK with noise", printer = True, sk = True)
 
 
 	print ("Bootstrap using Ridge without noise:")
-	bootstrap(X, zr, lmb = 1e-4, method = "Ridge")
+	bootstrap(X, zr, filename = filename, lmb = lmb, method = "Ridge")
 	print ("Bootstrap using Ridge with noise:")
-	bootstrap(X, zr_noise, lmb = 1e-4, method = "Ridge")
+	bootstrap(X, zr_noise, filename = filename, lmb = lmb, method = "Ridge")
+
+	if argv[2] == "noise":
+		noise = np.linspace(0, 10, 100)
+		for i in noise:
+			zr_noise = zr + i*np.random.randn(n_samples**2, 1)
+			pred_ridge_noise_SK = (Ridge(fit_intercept = False).fit(X, zr_noise).predict(X)).flatten()
+
+			MSE_noise, MSE_SK_noise, R2_noise, R2_SK_noise = R2MSEeval(zr, pred_ridge_noise_SK, filename2, method = ("Ridge from SK with noise %1.2f" %i), printer = True, sk = True)
 
 
 ###########################
@@ -164,13 +189,13 @@ elif argv[1] == "c" or argv == "all":
 	#Plots if neccessary
 	if len(argv) > 1 and argv[2] == "plot":
 		#Finding optimal alpha value for the instance without noise
-		alpha_values = np.logspace(-4, -1, 10)   #Should we use logspace?
+		alpha_values = np.logspace(-5, -1, 10)   #Should we use logspace?
 		R2list = []
 		MSElist = []
 
 		for alpha in alpha_values:
 			MSE, R2 = bootstrap(X, zr, alpha = alpha, method = "Lasso", sk = True, 
-								output = True, printer = False)
+								output = True, printer = False, nBoots = 100)
 			R2list.append(R2)
 			MSElist.append(MSE)
 
@@ -182,7 +207,10 @@ elif argv[1] == "c" or argv == "all":
 		ax.set_xlabel(r"$\alpha$", fontsize = fs2)
 		ax.set_ylabel(r"R2", fontsize = fs2)
 		ax.legend()
+		ax.tick_params(labelsize = fs3)
+		plt.tight_layout()
 
+		fig.savefig('../figures/LassoR2')
 
 		fig2, ax2 = plt.subplots()
 		ax2.semilogx(alpha_values, MSElist, label = "MSE") 
@@ -190,13 +218,25 @@ elif argv[1] == "c" or argv == "all":
 		ax2.set_xlabel(r"$\alpha$", fontsize = fs2)
 		ax2.set_ylabel(r"MSE", fontsize = fs2)
 		ax2.legend()
+		ax2.tick_params(labelsize = fs3)
+		plt.tight_layout()
 
+		fig2.savefig('../figures/LassoMSE')
 		plt.show()
 
-		#Found the best aplha to be below 1e-3, but those values gives me errors in the scikit lasso.
+		#Found the best aplha to be below 1e-4, but those values gives me errors in the scikit lasso.
 		# Did therefore choose a more stable alpha.
 
-	alpha = 1e-2
+	alpha = 1e-4
+
+	filename = "../benchmarks/taskc_alpha%1.2e.txt" %(alpha)
+
+	f = open(filename, 'w')
+	f.write("#Task c")
+	f.close()
+
+	OverfitAnalyze(x, y, zr, method = "Lasso")
+
 	#Without noise
 	pred_lasso_SK = (Lasso(alpha = alpha, fit_intercept = False).fit(X, zr).predict(X)).flatten()
 
@@ -204,14 +244,14 @@ elif argv[1] == "c" or argv == "all":
 	pred_lasso_noise_SK = (Lasso(alpha = alpha, fit_intercept = False).fit(X, zr_noise).predict(X)).flatten()
 
 	#Finding MSE and R2
-	R2MSEeval(zr, pred_lasso_SK, method = "Lasso", printer = True, sk = True)
-	R2MSEeval(zr, pred_lasso_noise_SK, method = "Lasso with noise", printer = True, sk = True)
+	R2MSEeval(zr, pred_lasso_SK, filename, method = "Lasso", printer = True, sk = True)
+	R2MSEeval(zr, pred_lasso_noise_SK, filename, method = "Lasso with noise", printer = True, sk = True)
 
 
 	print ("Bootstrap using Lasso without noise:")
-	bootstrap(X, zr, alpha = alpha, method = "Lasso")
+	bootstrap(X, zr, filename = filename, alpha = alpha, method = "Lasso")
 	print ("Bootstrap using Lasso with noise:")
-	bootstrap(X, zr_noise, alpha = alpha, method = "Lasso")
+	bootstrap(X, zr_noise, filename = filename, alpha = alpha, method = "Lasso")
 
 ###########################
 #####     Task d)     #####
@@ -248,11 +288,7 @@ elif argv[1] == "e" or argv == "all":
 
 	terrain = []
 
-	print (patch_n, patch_m, terrainReader.terrain.shape)
-
 	for i in range(0, n_patches):
-		print (i*patch_n, (i+1)*patch_n)
-
 		terrain.append((terrainReader.terrain)[i*patch_n:(i+1)*patch_n, i*patch_m:(i+1)*patch_m])
 		#Will loose the last row by doing it like this
 
@@ -266,24 +302,58 @@ elif argv[1] == "e" or argv == "all":
 
 	num_data = n*m
 
+	filename = "../benchmarks/taske.txt"
+	f = open(filename, 'w')
+	f.write("#Task e")
+	f.close()
+
 	X = X_creator(x, y, n_samples1 = patch_n, n_samples2 = patch_m)
 
+	timetracker = [0, 0, 0]
 	
-	for i in terrain:
-		z = i.flatten()
+	for i in range(0, len(terrain)):
+		z = terrain[i].flatten()
 
-		print(z.shape)
-		print (X.shape)
+		f = open(filename, 'a+')
+		f.write('\n # Patch number (%d/%d) \n' %(i, len(terrain)))
+		f.close()
 
-		bootstrap(X, z, method = "OLS") 
-		bootstrap(X, z, lmb = 1e-4, method = "Ridge")	
-		bootstrap(X, z, alpha = 1e-2, method = "Lasso")
+		olsstart = time.time()
+		bootstrap(X, z, filename = filename, method = "OLS")
+		olsend = time.time()
+		f = open(filename, 'a+')
+		f.write('# Time used = %1.2f \n' %(olsend - olsstart))
+		f.close()
+		timetracker[0] += (olsend - olsstart)
+
+		ridgestart = time.time()
+		bootstrap(X, z, filename = filename, lmb = 1e-4, method = "Ridge")	
+		ridgeend = time.time()
+		f = open(filename, 'a+')
+		f.write('# Time used = %1.2f \n' %(ridgeend - ridgestart))
+		f.close()
+		timetracker[1] += (ridgeend - ridgestart)
+
+		lassostart = time.time()
+		bootstrap(X, z, filename = filename, alpha = 1e-2, method = "Lasso")
+		lassoend = time.time()
+		f = open(filename, 'a+')
+		f.write('# Time used = %1.2f \n' %(lassoend - lassostart))
+		f.close()
+		timetracker[2] += (lassoend - lassostart)
 
 		
 
-		pred = (LinearRegression(fit_intercept = False).fit(X, z).predict(X)).flatten()
+		# pred = (LinearRegression(fit_intercept = False).fit(X, z).predict(X)).flatten()
 
-		print (pred.shape)
+		# print (pred.shape)
+
+	f = open(filename, 'a+')
+	f.write('# Time used for each method: \n')
+	f.write('OLS: %1.2f' %timetracker[0])
+	f.write('Ridge: %1.2f' %timetracker[1])
+	f.write('Lasso: %1.2f' %timetracker[2])
+	f.close()
 
 	# plt.figure()
 	# plt.title('Terrain over Norway 1')
