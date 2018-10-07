@@ -61,7 +61,7 @@ class MapDataImport():
 	def __init__(self):
 		b = 0
 
-	def ImportData(self, filename = '../MachineLearning/doc/Projects/2018/Project1/DataFiles/SRTM_data_Norway_1.tif'):
+	def ImportData(self, filename = '../data/SRTM_data_Norway_1.tif'):
 		self.terrain = imread(filename)
 
 	def PlotTerrain(self):
