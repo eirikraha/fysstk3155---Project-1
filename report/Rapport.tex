@@ -36,6 +36,9 @@ Joakim Kalsnes
 \usepackage{booktabs, makecell, longtable}
 \usepackage{lscape}
 
+\newcommand{\E}[1]{\cdot 10^{#1}}
+\newcommand{\e}[1]{\text{#1}}
+\newcommand{\husk}[1]{\color{red} #1 \color{black}}
 
 
 \DeclareMathOperator*{\argmin}{argmin}
@@ -164,7 +167,66 @@ The command line arguments "b" and "c" will do the same as "a" only using Ridge 
 This command line argument provides a part of the script which is more used as a proof of concept. By providing "d" as your argument, the class \texttt{terrainReader} will import the map data stored in the file \texttt{SRTM\_data\_Norway\_1.tif} and plot it. This is a general method which can be used for all \texttt{.tif}-files downloaded from \url{https://earthexplorer.usgs.gov/}.
 \subsection{Command Line Argument: e}
 Lastly, the commmand line argument "e" will provide you with a combination of all the tasked performed previously. The script will now read the map data, divide it into a set number of patches and perform ordinary least square, ridge and lasso regression using bootstrap. The MSE, R2, bias and variance will then be calculated for each method.
+
+
+\husk{Adding noise og kanskje Franke Function i teori?}
 \section{Results and Discussion}  \label{s:rd}
+All results which are either written to file or plotted can be found in the \texttt{benchmarks} and \texttt{figures} folders. \\ \\
+Using command line argument "a", "b" and "c" we performed different methods for regression upon our data and found the results presented in table \ref{tabR:abc}.
+\begin{table}[H]
+\centering
+\begin{tabular}{c|c|c|c|c|c|c|c}
+Method & R2 & MSE & $\lambda$ & $\alpha$ & Variance & Bias & Error \\ \hline
+OLS & $0.976$ & $1.94\E{-3}$ & - & - & - & - & - \\ \hline
+Ridge & $0.977$ & $2.08\E{-3}$ & $1\E{-4}$ & - & - & - & - \\ \hline
+Lasso &  $0.659$ & $3.16\E{-2}$ & - & $1\E{-2}$ & - & - & - \\ \hline
+OLS* & $0.976$ & $1.94\E{-3}$ & - & - & - & - & - \\ \hline
+Ridge* & $0.977$ & $2.07\E{-3}$ & $1\E{-4}$ & - & - & - & - \\ \hline
+Lasso* &$0.659$ & $3.16\E{-2}$ & - & $1\E{-2}$ & - & - & -  \\ \hline
+OLS$^{\dagger}$ & $0.975$ & $1.97\E{-3}$ & - & - & $1.01\E{-5}$ & $1.96\E{-3}$ & $1.97\E{-3}$ \\ \hline
+Ridge$^{\dagger}$ & $0.977$ & $2.07\E{-3}$ & $1\E{-4}$ & - & $8.26\E{-6}$ & $2.06\E{-3}$ & $2.07\E{-3}$ \\ \hline
+Lasso$^{\dagger}$ & $0.664$ & $3.05\E{-2}$ & - & $1\E{-2}$ & $1.79\E{-5}$ & $3.05\E{-2}$ & $3.05\E{-2}$  \\ \hline
+\end{tabular}
+\caption{Results from OLS, Ridge and Lasso regression on data from the Franke Function, data from the Franke Function with added noise of 0.01 (*) and by using bootstrap with 1000 iterations ($\dagger$). - symbolises values not relevant or nonexisting.}
+\label{tabR:abc}
+\end{table}
+As we can see there are small differences between ordinary least squared and Ridge, however Lasso seems to be the biggest looser. It is evident that the noise contribution is too small to make any difference and should be increased for a more in depth study of its effect. By bootstrapping we can see that the R2-score and MSE are relatively stable. The bias and variance have big differences for all three methods with Bias being the main contributor to the error. \husk{Er ikke dette litt rart i og med at Lasso og Ridge skal bytte på å ha high/low variance og low/high bias?}. \\ \\
+Given the subpar MSE and R2-score of the Lasso-method it would be natural to change the $\alpha$ value until we receive satisfactory results. This can also be done to the $\lambda$ in the Ridge method and figure \ref{figRD:RLR2MSE} illustrates the R2-score and the MSE for different values:
+\begin{figure}[H]
+\centering
+\begin{subfigure}[t]{0.48\textwidth}
+\includegraphics[width=\linewidth]{../figures/RidgeR2.png}
+\caption{Ridge R2}
+\label{figRD:RR2}
+\end{subfigure}
+\ \
+\begin{subfigure}[t]{0.48\textwidth}
+\includegraphics[width = \linewidth]{../figures/RidgeMSE.png}
+\caption{Ridge MSE}
+\label{figRD:RMSE}
+\end{subfigure}
+\\
+\begin{subfigure}[t]{0.48\textwidth}
+\includegraphics[width=\linewidth]{../figures/LassoR2.png}
+\caption{Lasso R2}
+\label{figRD:LR2}
+\end{subfigure}
+\
+\begin{subfigure}[t]{0.48\textwidth}
+\includegraphics[width = \linewidth]{../figures/LassoMSE.png}
+\caption{Lasso MSE}
+\label{figRD:LMSE}
+\end{subfigure}
+\caption{R2-scores and MSE for different values of $\lambda$ and $\alpha$ using Ridge and Lasso respectively.}
+\label{figRD:RLR2MSE}
+\end{figure}
+From these values we found that the optimal $\lambda$ was a bit above $1\E{-4}$ as this is before the start of a major fall for R2 and a major rise for MSE. Going below this value seems to have little to no effect upon both R2 and MSE. Similarily with $\alpha$ we can see that $\E{-2}$ right below a major climb/fall in MSE and R2 respectively. There also seems to be something to be gained going below this value, however doing this gives a warning from \texttt{scikit learn} saying that going too low may cause precision problems. $\alpha = 1\E{-2}$ is therefore a compromise between good enough scores and precision. One could argue the use of a lower $\alpha$, however, to ensure reproducible results, this high $\alpha$ was chosen. These are also the values used for the calculations in table \ref{tabR:abc}.
+
+\husk{Colorplot med støy og alpha/lambda på aksene? Hadde vært kult.}
+
+\husk{Analyse av hvilken metode som er best}
+
+
 \section{Future Works}\label{s:fw}
 \section{Conclusion}  \label{s:con}
 \section*{References} \label{s:ref}
