@@ -393,6 +393,7 @@ elif argv[1] == "b" or argv == "all":
 		ax.set_ylabel(r"R2", fontsize = fs2)
 		ax.legend()
 
+		fig.savefig('../figures/RidgeR2.png')
 
 		fig2, ax2 = plt.subplots()
 		ax2.semilogx(lmb_values, MSElist, label = "MSE") 
@@ -401,6 +402,7 @@ elif argv[1] == "b" or argv == "all":
 		ax2.set_ylabel(r"MSE", fontsize = fs2)
 		ax2.legend()
 
+		fig2.savefig('../figures/RidgeMSE.png')
 		plt.show()
 
 		#Finds the best lambda to be about 1e-4
@@ -411,6 +413,9 @@ elif argv[1] == "b" or argv == "all":
 	pred_ridge_SK = (Ridge(fit_intercept = False).fit(X, zr).predict(X)).flatten()
 
 	#With noise
+
+	#OBS! Remeber to vary noise
+
 	pred_ridge_noise = (HomeMadeRidge().fit(X, zr_noise, lmb = 1e-4).predict(X).pred).flatten()
 	pred_ridge_noise_SK = (Ridge(fit_intercept = False).fit(X, zr_noise).predict(X)).flatten()
 
@@ -509,7 +514,7 @@ elif argv[1] == "e" or argv == "all":
 	terrainReader = MapDataImport()
 	terrainReader.ImportData()
 
-	n_patches = 5
+	n_patches = 10
 
 	#z = terrainReader.terrain.reshape(-1, 1)
 

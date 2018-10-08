@@ -1,0 +1,40 @@
+#Task b
+ Ridge 
+MSE: 1.90e-03 
+SciKit MSE: 1.90e-03 
+R2score: 9.76e-01 
+SciKit R2score: 9.76e-01 
+Normal 
+$0.98$ & $1.90e-03$ & - & - & - & - & - 
+Sci 
+$0.98$ & $1.90e-03$ & - & - & - & - & - 
+
+ Ridge from SK 
+MSE: 1.90e-03 
+SciKit MSE: 1.90e-03 
+R2score: 9.76e-01 
+SciKit R2score: 9.76e-01 
+Normal 
+$0.98$ & $1.90e-03$ & - & - & - & - & - 
+Sci 
+$0.98$ & $1.90e-03$ & - & - & - & - & - 
+
+ Ridge with noise 
+MSE: 1.90e-03 
+SciKit MSE: 1.90e-03 
+R2score: 9.76e-01 
+SciKit R2score: 9.76e-01 
+Normal 
+$0.98$ & $1.90e-03$ & - & - & - & - & - 
+Sci 
+$0.98$ & $1.90e-03$ & - & - & - & - & - 
+
+ Ridge from SK with noise 
+MSE: 1.90e-03 
+SciKit MSE: 1.90e-03 
+R2score: 9.76e-01 
+SciKit R2score: 9.76e-01 
+Normal 
+$0.98$ & $1.90e-03$ & - & - & - & - & - 
+Sci 
+$0.98$ & $1.90e-03$ & - & - & - & - & - 

@@ -1,0 +1,20 @@
+#Task c
+ Lasso 
+MSE: 7.52e-03 
+SciKit MSE: 7.52e-03 
+R2score: 9.03e-01 
+SciKit R2score: 9.03e-01 
+Normal 
+$0.90$ & $7.52e-03$ & - & - & - & - & - 
+Sci 
+$0.90$ & $7.52e-03$ & - & - & - & - & - 
+
+ Lasso with noise 
+MSE: 7.52e-03 
+SciKit MSE: 7.52e-03 
+R2score: 9.03e-01 
+SciKit R2score: 9.03e-01 
+Normal 
+$0.90$ & $7.52e-03$ & - & - & - & - & - 
+Sci 
+$0.90$ & $7.52e-03$ & - & - & - & - & - 
