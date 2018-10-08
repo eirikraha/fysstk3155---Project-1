@@ -1,0 +1,21 @@
+\begin{thebibliography}{1}
+
+\bibitem{Hastie}
+Hastie et~al.
+\newblock {\em The Elements of Statistical Learning - Data Mining, Inference,
+  and Prediction}.
+\newblock Springer, second edition edition, 2017.
+
+\bibitem{Franke}
+Richard Franke.
+\newblock Smooth interpolation of scattered data by local thin plate splines.
+\newblock {\em Computers \& Mathematics with Applications}, 8(4):273 -- 281,
+  1982.
+
+\bibitem{Normal}
+Wikipedia.
+\newblock Normal distribution.
+\newblock {https://en.wikipedia.org/wiki/Normal\_distribution}, 2018.
+\newblock Last visited 08.10.2018.
+
+\end{thebibliography}

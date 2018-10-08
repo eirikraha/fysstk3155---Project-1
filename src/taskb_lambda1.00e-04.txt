@@ -1,0 +1,80 @@
+
+ Ridge 
+MSE: 1.64e-03 
+SciKit MSE: 1.64e-03 
+R2score: 9.77e-01 
+SciKit R2score: 9.77e-01 
+
+ Ridge from SK 
+MSE: 6.64e-03 
+SciKit MSE: 6.64e-03 
+R2score: 9.08e-01 
+SciKit R2score: 9.08e-01 
+
+ Ridge with noise 
+MSE: 1.64e-03 
+SciKit MSE: 1.64e-03 
+R2score: 9.77e-01 
+SciKit R2score: 9.77e-01 
+
+ Ridge from SK with noise 
+MSE: 6.64e-03 
+SciKit MSE: 6.64e-03 
+R2score: 9.08e-01 
+SciKit R2score: 9.08e-01 
+Ridge
+Error: 1.67e-03 
+Bias^2: 1.66e-03 
+Var: 1.67e-03 
+1.67e-03 >= 1.66e-03 + 6.74e-06 = 1.67e-03 
+Diff: 4.34e-19 
+Bootstrap MSE: 1.67e-03, std:  1.70e-05, var: 2.88e-10 
+Bootstrap R2: 9.77e-01, std:  2.36e-04, var: 5.59e-08 
+Ridge
+Error: 1.82e-03 
+Bias^2: 1.81e-03 
+Var: 1.82e-03 
+1.82e-03 >= 1.81e-03 + 7.12e-06 = 1.82e-03 
+Diff: 4.34e-19 
+Bootstrap MSE: 1.82e-03, std:  8.39e-06, var: 7.03e-11 
+Bootstrap R2: 9.75e-01, std:  1.14e-04, var: 1.29e-08 
+
+ Ridge 
+MSE: 1.99e-03 
+SciKit MSE: 1.99e-03 
+R2score: 9.79e-01 
+SciKit R2score: 9.79e-01 
+
+ Ridge from SK 
+MSE: 8.75e-03 
+SciKit MSE: 8.75e-03 
+R2score: 9.05e-01 
+SciKit R2score: 9.05e-01 
+
+ Ridge with noise 
+MSE: 1.99e-03 
+SciKit MSE: 1.99e-03 
+R2score: 9.78e-01 
+SciKit R2score: 9.78e-01 
+
+ Ridge from SK with noise 
+MSE: 8.75e-03 
+SciKit MSE: 8.75e-03 
+R2score: 9.05e-01 
+SciKit R2score: 9.05e-01 
+Ridge
+Error: 2.01e-03 
+Bias^2: 2.00e-03 
+Var: 2.01e-03 
+2.01e-03 >= 2.00e-03 + 7.62e-06 = 2.01e-03 
+Diff: 4.34e-19 
+Bootstrap MSE: 2.01e-03, std:  5.21e-06, var: 2.71e-11 
+Bootstrap R2: 9.78e-01, std:  5.74e-05, var: 3.29e-09 
+Ridge
+Error: 2.15e-03 
+Bias^2: 2.14e-03 
+Var: 2.15e-03 
+2.15e-03 >= 2.14e-03 + 7.77e-06 = 2.15e-03 
+Diff: -4.34e-19 
+Bootstrap MSE: 2.15e-03, std:  7.48e-06, var: 5.59e-11 
+Bootstrap R2: 9.77e-01, std:  8.02e-05, var: 6.44e-09 

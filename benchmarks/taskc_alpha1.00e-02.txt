@@ -1,0 +1,30 @@
+#Task c
+ Lasso 
+MSE: 2.96e-02 
+SciKit MSE: 2.96e-02 
+R2score: 6.62e-01 
+SciKit R2score: 6.62e-01 
+
+ Lasso with noise 
+MSE: 2.96e-02 
+SciKit MSE: 2.96e-02 
+R2score: 6.63e-01 
+SciKit R2score: 6.63e-01 
+
+Lasso
+Error: 3.08e-02 
+Bias^2: 3.08e-02 
+Var: 1.34e-05 
+3.08e-02 >= 3.08e-02 + 1.34e-05 = 3.08e-02 
+Diff: -3.47e-18 
+Bootstrap MSE: 3.08e-02, std:  3.49e-04, var: 1.22e-07 
+Bootstrap R2: 6.55e-01, std:  3.91e-03, var: 1.53e-05 
+
+Lasso
+Error: 3.06e-02 
+Bias^2: 3.06e-02 
+Var: 1.44e-05 
+3.06e-02 >= 3.06e-02 + 1.44e-05 = 3.06e-02 
+Diff: 0.00e+00 
+Bootstrap MSE: 3.06e-02, std:  4.13e-04, var: 1.71e-07 
+Bootstrap R2: 6.58e-01, std:  4.62e-03, var: 2.13e-05 
