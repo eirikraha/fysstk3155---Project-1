@@ -39,6 +39,9 @@ def R2score(y, y_hat):
 	return 1 - np.sum((y - y_hat)**2)/np.sum((y - np.mean(y))**2)
 
 def R2MSEeval(zr, pred, filename, sk = False, method = " ", printer = False):
+	#Finds and writes R2 and MSE to file
+	#One can choose to use either "home made" functions or sk-functions
+
 
 	zr = zr.flatten()
 
@@ -56,6 +59,8 @@ def R2MSEeval(zr, pred, filename, sk = False, method = " ", printer = False):
 		f.write("%s \n"  %method)
 		f.write("MSE: %1.2e \n"  %MSE)
 		f.write("R2score: %1.2e \n" %R2)
+
+		f.write('$%1.2e$ & $%1.2e$ & - & - & - & - & - \n' %(R2, MSE))
 		f.close()
 
 		return MSE, R2
@@ -82,6 +87,11 @@ def R2MSEeval(zr, pred, filename, sk = False, method = " ", printer = False):
 		f.write("SciKit MSE: %1.2e \n" %MSEsci)
 		f.write("R2score: %1.2e \n" %R2)
 		f.write("SciKit R2score: %1.2e \n" %R2sci)
+
+		f.write('Normal \n')
+		f.write('$%1.2f$ & $%1.2e$ & - & - & - & - & - \n' %(R2, MSE))
+		f.write('Sci \n')
+		f.write('$%1.2f$ & $%1.2e$ & - & - & - & - & - \n' %(R2sci, MSEsci))
 		f.close()
 
 		return MSE, MSEsci, R2, R2sci
@@ -91,6 +101,9 @@ def R2MSEeval(zr, pred, filename, sk = False, method = " ", printer = False):
 
 def bootstrap(X, zdata, filename = "../benchmarks/dump.txt", method = "OLS", lmb = 1e-3, alpha = 1e-3, 
 				nBoots = 1000, sk = True, test_size = 0.40, output = False, printer = True):
+	#Bootstrap over nBoots iterations performed upon the data given by the method specified.
+	#test_size gives the fraction of the data supposed to be test data.
+
 
 	bootVec = np.zeros(int(np.floor(test_size*len(zdata))))
 	#bootVec = np.array([np.zeros(len(zdata)+ 1) for i in range(0, nBoots)])
@@ -104,21 +117,7 @@ def bootstrap(X, zdata, filename = "../benchmarks/dump.txt", method = "OLS", lmb
 
 	progress_tracker = np.floor(nBoots/100.0)
 
-	# Choose random elements from the data-array, one element may be
-	# chosen more than once. 
-	#bootVec = np.random.choice(bootIndexes, int(np.floor(test_size*len(bootIndexes))), replace = False)
-
 	X_train, X_test, zr_train, zr_test = train_test_split(X, zdata, test_size=test_size)
-
-	# X_train    = X[bootVec]
-	# zr_train   = zdata[bootVec]
-
-	# test_index = [j for j in bootIndexes if j not in bootVec]
-
-	# print ("Test Index finder done")
-
-	# X_test = X[test_index]
-	# zr_test = (zdata[test_index]).flatten()
 
 	pred_z = np.empty((zr_test.shape[0], nBoots))
 
@@ -210,6 +209,10 @@ def bootstrap(X, zdata, filename = "../benchmarks/dump.txt", method = "OLS", lmb
 			f.write('Diff: %1.2e \n' %(bootMSE_avg - (bias+variance)))
 			f.write('Bootstrap MSE: %1.2e, std:  %1.2e, var: %1.2e \n' %(bootMSE_avg, bootMSE_std, bootMSE_var))
 			f.write('Bootstrap R2: %1.2e, std:  %1.2e, var: %1.2e \n' %(bootR2_avg, bootR2_std, bootR2_var))			
+			
+			f.write('$%1.2f$ & $%1.2e$ & $%1.2e$ & $%1.2e$ & $%1.2e$ & $%1.2e$ & $%1.2e$ \n' %(bootR2_avg, 
+				bootMSE_avg, lmb, alpha, variance, bias, error))
+
 			f.close()
 
 		if sk:
@@ -220,6 +223,10 @@ def bootstrap(X, zdata, filename = "../benchmarks/dump.txt", method = "OLS", lmb
 			f.write('Diff: %1.2e \n' %(bootMSE_SK_avg - (bias+variance)))
 			f.write('Bootstrap MSE: %1.2e, std:  %1.2e, var: %1.2e \n' %(bootMSE_SK_avg, bootMSE_SK_std, bootMSE_SK_var))
 			f.write('Bootstrap R2: %1.2e, std:  %1.2e, var: %1.2e \n' %(bootR2_SK_avg, bootR2_SK_std, bootR2_SK_var))			
+			
+			f.write('$%1.2f$ & $%1.2ef$ & $%1.2e$ & $%1.2e$ & $%1.2e$ & $%1.2e$ & $%1.2e$ \n' %(bootR2_SK_avg, 
+				bootMSE_SK_avg, lmb, alpha, variance, bias, error))
+
 			f.close()
 
 	if output and not sk:
@@ -230,6 +237,7 @@ def bootstrap(X, zdata, filename = "../benchmarks/dump.txt", method = "OLS", lmb
 
 
 def X_creator(x, y, n_samples1 = 100, n_samples2 = 100, k=6):
+	#Creates the X matrix with polynomials up to order k
 
 	X = np.c_[np.ones((n_samples1*n_samples2, 1))]
 
@@ -240,50 +248,100 @@ def X_creator(x, y, n_samples1 = 100, n_samples2 = 100, k=6):
 
 	return X
 
-def ColorPlotter(x, y, z, method, fs1 = 20, fs2 = 20, fs3 = 20):
+def ColorPlotter(x, y, z, method, ylabel, cbartitle,fs1 = 20, fs2 = 20, fs3 = 20, show = False, taske = False):
+	#Creates colorplots
+
 	if method == "Lasso":
-		maxi = 1.0
-		mini = 0.5
+		xlabel= r"$\alpha$"
 	elif method == "Ridge":
-		maxi = 0.5
-		mini = 0
+		xlabel = r"$\lambda$"
 
-	fig, ax = plt.subplots(figsize = (18, 9))
+	if cbartitle == "R2":
+		maxi = 1.0
+		mini = 0.7
+	elif cbartitle == "MSE":
+		maxi = 0.02
+		mini = 0.0
 
-	xheaders = ['%1.2f' %i  for i in y]
-	yheaders = ['%1.2f' %i for i in x]
+	fig, ax = plt.subplots(figsize = (18,9))
+
+	yheaders = ['%1.2f' %i  for i in y]
+	xheaders = ['%1.2e' %i for i in x]
 
 	heatmap = ax.pcolor(z, edgecolors = "k", linewidth = 2, vmin = mini, vmax = maxi)
 	cbar = plt.colorbar(heatmap, ax = ax)
 	cbar.ax.tick_params(labelsize= fs3) 
+	cbar.ax.set_title(cbartitle, fontsize = fs2)
 
+
+	ax.set_title(method, fontsize = fs1)
 	ax.set_xticks(np.arange(z.shape[1]) +.5, minor = False)
 	ax.set_yticks(np.arange(z.shape[0]) +.5, minor = False)
 
 	ax.set_xticklabels(xheaders,rotation=90, fontsize = fs3)
 	ax.set_yticklabels(yheaders, fontsize = fs3)
 
-	plt.show()
+	ax.set_xlabel(xlabel, fontsize = fs2)
+	ax.set_ylabel(ylabel, fontsize = fs2)
 
-def OverfitAnalyze(x, y, z, method):
-	alpha_values = np.logspace(-5, -1, 20)
-	p_values = np.linspace(2, 6, 5)
-	alpha_values2 = np.linspace(-5, -1, 20)
+	plt.tight_layout()
 
-	print (p_values)
+	if taske:
+		method = 'Taske_' + method 
+	plt.savefig('../figures/%s-%s-%s-%s-mini%1.2f-maxi%1.2f.png' %(method, 
+				ylabel, yheaders[-1],cbartitle, mini, maxi))
+	if show:
+		plt.show()
+
+def FitAnalyze(x, y, z, method, show = False, taske = False, n_samples1 = 100, n_samples2 = 100):
+	#Varies the degree of the polynomials and alpha/lambda and then plots the results
+
+	n = 5
+	p_values = np.linspace(2, n+1, n)
+	alpha_values = np.logspace(-6, -1, n*4)
+	
+	alpha_values2 = np.linspace(-6, -1, n*4)
 
 	R2list = [[] for i in range(0, len(p_values))]
 	MSElist = [[] for i in range(0, len(p_values))]
 
 	for p in range(0, len(p_values)):
-		X_temp = X_creator(x, y, k = int(p_values[p]))
+		X_temp = X_creator(x, y, n_samples1 = n_samples1, n_samples2 = n_samples2, k = int(p_values[p]))
 		for alpha in range(0, len(alpha_values)):
-			MSE, R2 = bootstrap(X_temp, z, alpha = alpha_values[alpha], method = method, sk = True, 
+			MSE, R2 = bootstrap(X_temp, z, lmb = alpha_values[alpha], alpha = alpha_values[alpha], method = method, sk = True, 
 								output = True, printer = False, nBoots = 100)
-			R2list[p-1].append(R2)
-			MSElist[p-1].append(MSE)
+			R2list[p].append(R2)
+			MSElist[p].append(MSE)
 
-	ColorPlotter(np.array(p_values), np.array(alpha_values2), np.array(R2list), method = method)
+	ColorPlotter(np.array(alpha_values), np.array(p_values), np.array(R2list), 
+							method = method, ylabel = 'p', cbartitle = 'R2', show = show, taske = taske)
+	ColorPlotter(np.array(alpha_values), np.array(p_values), np.array(MSElist), 
+							method = method, ylabel = 'p', cbartitle = 'MSE', show = show, taske = taske)
+
+def NoiseAnalyze(X, z, method, show = False, taske = False):
+	#Varies the noise and alpha/lambda and then plots the results
+
+	n = 6
+
+	alpha_values = np.logspace(-6, -1, n)
+	noise_values = np.linspace(0, 0.3, n*2)
+
+	R2list = [[] for i in range(0, len(noise_values))]
+	MSElist = [[] for i in range(0, len(noise_values))]
+
+	for noise in range(0, len(noise_values)):
+		z_noise = z + noise_values[noise]*np.random.randn(X.shape[0], 1)
+		for alpha in range(0, len(alpha_values)):
+			MSE, R2 = bootstrap(X, z_noise, lmb = alpha_values[alpha], alpha = alpha_values[alpha], method = method, sk = True, 
+								output = True, printer = False, nBoots = 100)
+			R2list[noise].append(R2)
+			MSElist[noise].append(MSE)
+
+	ColorPlotter(np.array(alpha_values), np.array(noise_values), np.array(R2list), 
+							method = method, ylabel = 'noise', cbartitle = 'R2', show = show, taske = taske)
+	ColorPlotter(np.array(alpha_values), np.array(noise_values), np.array(MSElist), 
+							method = method, ylabel = 'noise', cbartitle = 'MSE', show = show, taske = taske)
+
 
 
 
